@@ -2,22 +2,43 @@
 
 既存の `~/claude-monitor` は GitHub リポジトリそのものではない。新規ファイルだけコピーする。
 
-## 診断結果（2026-09-21）
+## Lovelace カードの貼り方
 
-- MQTT は通っている（`MQTT_PASS` SET、`mosquitto_pub` あり）
-- `jobs_state.json` に `Cursor: 1` がある
-- 実機ジョブの `kind` は `null`。Claude Code 欄に 1+1 が出ないのはラップ成功
-- HA に Cursor カードがまだ無いので画面上は見えない
+Jinja 本文だけを「セクションを編集」に貼ると YAML エラーになる。
+`{% set jobs ... %}` はセクション定義ではなく、**Markdown カード**の `content` に入れる。
 
-## Lovelace（次にやること）
+1. 「セクションを編集」は × で閉じる
+2. Claude Code カードがあるセクションで **カードを追加**
+3. **Markdown** を選ぶ
+4. 右下の **コードエディタを表示** を開き、次を **先頭から全部** 貼る
 
-`claude-monitor-live` を編集し、Markdown カード「Cursor 実行中・最近の処理」を追加する。本文は `lovelace/cursor_jobs_card.yaml` の `content:` 以下。`kind` が空でも `tool == 'Cursor'` なら表示する。
-
-## コピー
-
-```bash
-cd ~/HOMEAssistant-cursor-overlay
-git pull
-./claude-monitor/scripts/apply_on_mac_mini.sh
-python3 ~/claude-monitor/scripts/inspect_jobs.py
+```yaml
+type: markdown
+title: Cursor 実行中・最近の処理
+content: |
+  {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
+  {% set ns = namespace(rows=[]) %}
+  {% for job in jobs %}
+    {% set tool = job.tool | default(job.agent) %}
+    {% set kind = job.kind or job.type or 'adhoc' %}
+    {% if kind == 'adhoc' and tool == 'Cursor' %}
+      {% set ns.rows = ns.rows + [job] %}
+    {% endif %}
+  {% endfor %}
+  {% set rows = ns.rows %}
+  {% if rows | length == 0 %}
+  処理なし
+  {% else %}
+  | ジョブ | 経路 | 状態 | 段階 | モデル |
+  | --- | --- | --- | --- | --- |
+  {% for job in rows | sort(attribute='started', reverse=true) %}
+  {% set surface = job.surface | default('local') %}
+  {% set surface_label = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'}[surface] | default(surface) %}
+  | {{ job.name }} | {{ surface_label }} | {{ job.status }} | {{ job.stage }} | {{ job.model or '-' }} |
+  {% endfor %}
+  {% endif %}
 ```
+
+5. 保存する
+
+既存の Claude Code カードを複製し、`tool == 'Cursor'` に変える方法でもよい。

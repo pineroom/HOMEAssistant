@@ -15,7 +15,8 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertNotIn("!=", content)
         self.assertNotIn("not equalto", content)
         self.assertNotIn("Codex", content)
-        self.assertIn("tool == 'Cursor'", cursor)
+        self.assertTrue(cursor.lstrip().startswith("type: markdown"))
+        self.assertIn("content: |", cursor)
         self.assertIn("job.agent", cursor)
         self.assertIn("job.kind or job.type or 'adhoc'", cursor)
 
