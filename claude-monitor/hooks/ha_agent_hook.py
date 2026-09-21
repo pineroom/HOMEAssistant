@@ -21,7 +21,7 @@ from lib.classification import (
     is_cursor_payload,
     normalize_tool,
 )
-from lib.jobs import is_generic_job_name, normalize_job, stage_from_cursor_event
+from lib.jobs import extract_model, is_generic_job_name, normalize_job, stage_from_cursor_event
 
 JOB_ID_KEYS = (
     "conversation_id",
@@ -58,16 +58,34 @@ def load_job_names() -> dict:
     return data if isinstance(data, dict) else {}
 
 
-def remember_job_name(job_id: str, name: str) -> None:
-    if is_generic_job_name(name, job_id):
+def saved_job_fields(job_id: str) -> dict:
+    raw = load_job_names().get(job_id)
+    if isinstance(raw, str):
+        return {"name": raw}
+    if isinstance(raw, dict):
+        return dict(raw)
+    return {}
+
+
+def remember_job_fields(job_id: str, *, name: str | None = None, model: str | None = None) -> None:
+    entry = saved_job_fields(job_id)
+    if name and not is_generic_job_name(name, job_id):
+        entry["name"] = name
+    if model:
+        entry["model"] = model
+    if not entry:
         return
     names = load_job_names()
-    names[job_id] = name
+    names[job_id] = entry
     try:
         NAMES_PATH.parent.mkdir(parents=True, exist_ok=True)
         NAMES_PATH.write_text(json.dumps(names, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     except OSError:
         pass
+
+
+def remember_job_name(job_id: str, name: str) -> None:
+    remember_job_fields(job_id, name=name)
 
 
 def job_name_from_payload(payload: dict) -> str | None:
@@ -83,12 +101,21 @@ def job_name_from_payload(payload: dict) -> str | None:
 def resolve_job_name(payload: dict, job_id: str) -> str:
     incoming = job_name_from_payload(payload)
     if incoming and not is_generic_job_name(incoming, job_id):
-        remember_job_name(job_id, incoming)
+        remember_job_fields(job_id, name=incoming)
         return incoming
-    saved = load_job_names().get(job_id)
+    saved = saved_job_fields(job_id).get("name")
     if saved:
         return str(saved)
     return incoming or job_id
+
+
+def resolve_job_model(payload: dict, job_id: str) -> str | None:
+    incoming = extract_model(payload)
+    if incoming:
+        remember_job_fields(job_id, model=incoming)
+        return incoming
+    saved = saved_job_fields(job_id).get("model")
+    return str(saved) if saved else None
 
 
 def read_payload() -> dict:
@@ -153,7 +180,7 @@ def build_job(payload: dict) -> dict:
         "name": job_name(payload, job_id),
         "status": status,
         "stage": stage,
-        "model": payload.get("model"),
+        "model": resolve_job_model(payload, job_id),
         "hook_event_name": event,
         "reason": reason,
     }
@@ -180,8 +207,10 @@ def publish_via_live_notify(job: dict) -> None:
     env = os.environ.copy()
     env["JOB_ID"] = job["job_id"]
     env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
+    if job.get("model"):
+        env["MODEL"] = str(job["model"])
     python3 = shutil.which("python3", path=env["PATH"]) or "/usr/bin/python3"
-    cmd = [
+    base_cmd = [
         python3,
         str(live),
         "notify",
@@ -198,7 +227,13 @@ def publish_via_live_notify(job: dict) -> None:
         "--progress",
         str(progress_for_job(job)),
     ]
+    cmd = list(base_cmd)
+    if job.get("model"):
+        cmd.extend(["--model", str(job["model"])])
     result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=20, check=False)
+    if result.returncode != 0 and cmd != base_cmd:
+        cmd = base_cmd
+        result = subprocess.run(cmd, env=env, capture_output=True, text=True, timeout=20, check=False)
     log_line(f"live_notify exit={result.returncode} stderr={result.stderr.strip()[:300]}")
     if result.returncode != 0:
         raise subprocess.CalledProcessError(result.returncode, cmd, result.stdout, result.stderr)

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from typing import Any, Iterable
 
-from .jobs import claude_adhoc_jobs, cursor_adhoc_jobs
+from .jobs import claude_adhoc_jobs, cursor_adhoc_jobs, display_model, display_stage
 
 
 SURFACE_LABELS = {
@@ -43,6 +43,8 @@ def cursor_recent_rows(jobs: Iterable[dict[str, Any]]) -> list[dict[str, Any]]:
         row = dict(job)
         row["surface_label"] = SURFACE_LABELS.get(job.get("surface", "local"), job.get("surface") or "ローカル")
         row["status_color"] = STATUS_COLORS.get(job.get("status", ""), "grey")
+        row["stage"] = display_stage(job)
+        row["model"] = display_model(job)
         rows.append(row)
     return rows
 

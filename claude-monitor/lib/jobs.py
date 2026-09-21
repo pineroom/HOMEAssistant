@@ -52,6 +52,56 @@ def is_generic_job_name(name: Any, job_id: Any = None) -> bool:
     return bool(UUID_NAME_RE.match(text))
 
 
+PLACEHOLDER_MODELS = {"", "default", "auto", "inherit", "none", "null", "string", "-"}
+
+
+def normalize_model_label(raw: Any) -> Optional[str]:
+    if raw is None:
+        return None
+    if isinstance(raw, dict):
+        raw = raw.get("id") or raw.get("name") or raw.get("slug") or raw.get("model")
+    text = str(raw).strip()
+    if not text or text.lower() in PLACEHOLDER_MODELS:
+        return None
+    return text[:80]
+
+
+def extract_model(payload: Optional[dict[str, Any]]) -> Optional[str]:
+    if not payload:
+        return None
+    for key in ("model", "model_id", "modelId", "chat_model", "llm"):
+        label = normalize_model_label(payload.get(key))
+        if label:
+            return label
+    return None
+
+
+def display_stage(job: dict[str, Any]) -> str:
+    """HA 実機は stage が空でも status/progress から 1/4〜4/4 を出す。"""
+    stage = job.get("stage")
+    if stage and str(stage) not in {"None", "-", "null"}:
+        return str(stage)
+    progress = job.get("progress")
+    try:
+        progress_i = int(progress)
+    except (TypeError, ValueError):
+        progress_i = None
+    status = str(job.get("status") or "")
+    if status in TERMINAL_STATUSES or progress_i == 100:
+        return format_stage(4)
+    if status == "権限承認待ち" or (progress_i is not None and progress_i >= 70):
+        return format_stage(3)
+    if status == "待機中" or progress_i in {1, 10}:
+        return format_stage(1)
+    if status == "実行中" or (progress_i is not None and progress_i >= 30):
+        return format_stage(2)
+    return "-"
+
+
+def display_model(job: dict[str, Any]) -> str:
+    return extract_model(job) or "-"
+
+
 def _now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -119,9 +169,7 @@ def normalize_job(raw: dict[str, Any]) -> dict[str, Any]:
 
     tool = normalize_tool(raw.get("tool"))
     kind = normalize_kind(raw.get("kind"))
-    model = raw.get("model") or None
-    if model is not None:
-        model = str(model).strip() or None
+    model = extract_model(raw)
 
     if tool == "Cursor":
         surface = infer_cursor_surface(

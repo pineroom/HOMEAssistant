@@ -84,6 +84,8 @@ class HookTests(unittest.TestCase):
                             "conversation_id": "ec4aa7f3-e37b-4a2a-8ec4-180508535f5a",
                             "hook_event_name": "beforeSubmitPrompt",
                             "prompt": "1＋1を実行して",
+                            "model": "claude-opus-4-7-thinking-max",
+                            "model_id": "claude-opus-4-7",
                         }
                     )
                     stop = hook.build_job(
@@ -94,8 +96,11 @@ class HookTests(unittest.TestCase):
                         }
                     )
         self.assertEqual(start["name"], "1＋1を実行して")
+        self.assertEqual(start["model"], "claude-opus-4-7-thinking-max")
         self.assertEqual(stop["name"], "1＋1を実行して")
+        self.assertEqual(stop["model"], "claude-opus-4-7-thinking-max")
         self.assertEqual(stop["status"], "完了")
+        self.assertEqual(stop["stage"], "4/4")
 
     def test_empty_payload_still_gets_cursor_job_id(self):
         with mock.patch.dict(os.environ, {"TOOL": "Cursor"}):
@@ -130,6 +135,7 @@ class HookTests(unittest.TestCase):
         self.assertEqual(payload["agent"], "Cursor")
         self.assertEqual(payload["type"], "adhoc")
         self.assertEqual(payload["progress"], 30)
+        self.assertEqual(payload["id"], "conv-1")
 
 
 if __name__ == "__main__":

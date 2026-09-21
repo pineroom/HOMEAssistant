@@ -56,6 +56,8 @@ def brief(job: dict) -> dict:
         "name": job.get("name"),
         "status": job.get("status"),
         "kind": job.get("kind") or job.get("type"),
+        "stage": job.get("stage"),
+        "model": job.get("model") or job.get("model_id"),
         "started": job.get("started"),
     }
 

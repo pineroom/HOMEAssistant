@@ -8,7 +8,27 @@ content: |
     {% set tool = job.get('tool') or job.get('agent') %}
     {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
     {% if kind == 'adhoc' and tool == 'Cursor' %}
-      {% set ns.rows = ns.rows + [job] %}
+      {% set st = job.get('stage') %}
+      {% set p = job.get('progress') | default(0) | int %}
+      {% set status = job.get('status') or '' %}
+      {% if st and st != 'None' %}
+        {% set stage_disp = st %}
+      {% elif status in ['完了', 'エラー', '拒否'] or p == 100 %}
+        {% set stage_disp = '4/4' %}
+      {% elif status == '権限承認待ち' or p >= 70 %}
+        {% set stage_disp = '3/4' %}
+      {% elif status == '待機中' or p == 10 %}
+        {% set stage_disp = '1/4' %}
+      {% elif status == '実行中' or p >= 30 %}
+        {% set stage_disp = '2/4' %}
+      {% else %}
+        {% set stage_disp = '-' %}
+      {% endif %}
+      {% set model_disp = job.get('model') or job.get('model_id') or job.get('llm') or '-' %}
+      {% if model_disp in ['None', 'default', 'auto', ''] %}
+        {% set model_disp = '-' %}
+      {% endif %}
+      {% set ns.rows = ns.rows + [{'name': job.get('name'), 'surface': job.get('surface') or 'local', 'status': status or '-', 'stage': stage_disp, 'model': model_disp}] %}
     {% endif %}
   {% endfor %}
   {% set rows = ns.rows %}
@@ -19,6 +39,6 @@ content: |
   | ジョブ | 経路 | 状態 | 段階 | モデル |
   | --- | --- | --- | --- | --- |
   {%- for job in rows %}
-  | {{ job.get('name') }} | {{ labels.get(job.get('surface') or 'local', 'ローカル') }} | {{ job.get('status') or '-' }} | {{ job.get('stage') if job.get('stage') and job.get('stage') != 'None' else ('4/4' if job.get('status') == '完了' else '-') }} | {{ job.get('model') or '-' }} |
+  | {{ job.name }} | {{ labels.get(job.surface, 'ローカル') }} | {{ job.status }} | {{ job.stage }} | {{ job.model }} |
   {%- endfor %}
   {% endif %}

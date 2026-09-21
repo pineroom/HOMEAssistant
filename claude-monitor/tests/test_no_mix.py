@@ -9,7 +9,7 @@ from pathlib import Path
 
 from aggregator.jobs_store import apply_updates, sanitize_jobs
 from lib.classification import ClassificationError
-from lib.jobs import is_generic_job_name, merge_job, normalize_job
+from lib.jobs import display_stage, extract_model, is_generic_job_name, merge_job, normalize_job
 from lib.lovelace_filters import claude_recent_rows, cursor_recent_rows, tools_in_rows
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -95,6 +95,27 @@ class NoMixTests(unittest.TestCase):
         self.assertEqual(jobs[0]["name"], "1＋1を実行して")
         self.assertEqual(jobs[0]["status"], "完了")
         self.assertTrue(is_generic_job_name(job_id, job_id))
+
+    def test_display_stage_and_model_from_live_fields(self):
+        self.assertEqual(display_stage({"status": "完了"}), "4/4")
+        self.assertEqual(display_stage({"status": "実行中", "progress": 30}), "2/4")
+        self.assertEqual(display_stage({"status": "待機中"}), "1/4")
+        self.assertIsNone(extract_model({"model": "default"}))
+        self.assertEqual(extract_model({"model_id": "claude-opus-4-7"}), "claude-opus-4-7")
+        row = cursor_recent_rows(
+            [
+                {
+                    "job_id": "x",
+                    "tool": "Cursor",
+                    "kind": None,
+                    "name": "1+1を計算して",
+                    "status": "完了",
+                    "started": "2026-09-21T03:00:00+00:00",
+                }
+            ]
+        )[0]
+        self.assertEqual(row["stage"], "4/4")
+        self.assertEqual(row["model"], "-")
 
     def test_unknown_update_is_dropped(self):
         jobs = apply_updates([self.claude], [{"job_id": "mystery", "tool": "", "name": "???"}])

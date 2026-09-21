@@ -42,6 +42,10 @@ def to_mqtt_payload(job: dict) -> dict:
     out = dict(normalized)
     out["agent"] = normalized["tool"]
     out["type"] = normalized["kind"]
+    out["id"] = normalized["job_id"]
+    if normalized.get("model"):
+        out["model_id"] = normalized["model"]
+        out["llm"] = normalized["model"]
     status = normalized.get("status") or ""
     if status in {"完了", "エラー", "拒否"}:
         out["progress"] = 100
