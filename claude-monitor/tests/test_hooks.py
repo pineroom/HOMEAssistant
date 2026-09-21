@@ -37,8 +37,7 @@ class HookTests(unittest.TestCase):
         self.assertEqual(job["model"], "claude-4-sonnet-thinking")
 
     def test_missing_tool_is_not_claude_code(self):
-        with mock.patch.dict(os.environ, {"TOOL": ""}, clear=False):
-            os.environ.pop("TOOL", None)
+        with mock.patch.dict(os.environ, {}, clear=True):
             with self.assertRaises(hook.ClassificationError):
                 hook.detect_tool({"session_id": "abc"})
 
@@ -57,6 +56,7 @@ class HookTests(unittest.TestCase):
     def test_cursor_notify_script_exists(self):
         text = (ROOT / "hooks" / "cursor_notify.sh").read_text()
         self.assertIn("TOOL=Cursor", text)
+        self.assertIn("ha_agent_hook_cursor.py", text)
 
 
 if __name__ == "__main__":

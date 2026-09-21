@@ -12,7 +12,12 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from lib.classification import ClassificationError, infer_cursor_surface, normalize_tool
+from lib.classification import (
+    ClassificationError,
+    infer_cursor_surface,
+    is_cursor_payload,
+    normalize_tool,
+)
 from lib.jobs import normalize_job, stage_from_cursor_event
 
 
@@ -27,13 +32,7 @@ def detect_tool(payload: dict) -> str:
     env_tool = (os.environ.get("TOOL") or "").strip()
     if env_tool:
         return normalize_tool(env_tool)
-    event = str(payload.get("hook_event_name") or payload.get("event") or "")
-    cursor_markers = (
-        payload.get("is_background_agent") is not None,
-        payload.get("composer_mode"),
-        event[:1].islower() if event else False,
-    )
-    if any(cursor_markers):
+    if is_cursor_payload(payload):
         return "Cursor"
     raise ClassificationError("TOOL is required; refusing to default to Claude Code")
 
@@ -83,17 +82,10 @@ def build_job(payload: dict) -> dict:
 
 
 def publish(job: dict) -> None:
-    notify = Path(__file__).resolve().parent / "job_notify.sh"
-    env = os.environ.copy()
-    env["TOOL"] = job["tool"]
-    if job.get("surface"):
-        env["SURFACE"] = job["surface"]
-    env["KIND"] = job.get("kind") or "adhoc"
-    subprocess.run(
-        ["bash", str(notify), json.dumps(job, ensure_ascii=False)],
-        check=True,
-        env=env,
-    )
+    sys.path.insert(0, str(Path(__file__).resolve().parent))
+    from mqtt_publish import publish_job as publish_mqtt
+
+    publish_mqtt(job)
 
 
 def main() -> int:

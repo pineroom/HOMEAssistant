@@ -88,6 +88,29 @@ def infer_cursor_surface(
     return "local"
 
 
+CURSOR_PAYLOAD_KEYS = (
+    "composer_mode",
+    "is_background_agent",
+    "cursor_version",
+    "generation_id",
+)
+
+
+def is_cursor_payload(payload: Optional[dict], environ: Optional[dict] = None) -> bool:
+    """Cursor 経由の Hook かを判定する。Claude Code Hook の誤発火をここで止める。"""
+    env = environ if environ is not None else __import__("os").environ
+    if (env.get("TOOL") or "").strip().lower() == "cursor":
+        return True
+    if env.get("CURSOR_TRACE_ID") or env.get("CURSOR_AGENT"):
+        return True
+    if not payload:
+        return False
+    event = str(payload.get("hook_event_name") or payload.get("event") or "")
+    if event and event[:1].islower() and event[:1].isalpha():
+        return True
+    return any(payload.get(key) is not None for key in CURSOR_PAYLOAD_KEYS)
+
+
 def assert_tool_not_inferred_from_model(tool: str, model: Optional[str]) -> str:
     """モデル名（claude-4-sonnet 等）で tool を上書きしない。"""
     normalized = normalize_tool(tool)
