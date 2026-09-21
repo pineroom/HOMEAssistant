@@ -119,14 +119,20 @@ def find_mosquitto_pub():
 
 
 def publish_job(job: dict) -> None:
+    _publish(os.environ.get("MQTT_TOPIC", "claude/job_update"), to_mqtt_payload(job))
+
+
+def publish_usage(usage: dict) -> None:
+    _publish(os.environ.get("MQTT_USAGE_TOPIC", "claude/usage_update"), {"tool": "Cursor", "usage": usage})
+
+
+def _publish(topic: str, payload_obj: dict) -> None:
     load_env_files()
-    payload_obj = to_mqtt_payload(job)
     payload = json.dumps(payload_obj, ensure_ascii=False)
     host = os.environ.get("MQTT_HOST", "192.168.0.30")
     port = os.environ.get("MQTT_PORT", "1883")
     user = os.environ.get("MQTT_USER", "claude")
     password = os.environ.get("MQTT_PASS") or os.environ.get("MQTT_PASSWORD")
-    topic = os.environ.get("MQTT_TOPIC", "claude/job_update")
     binary = find_mosquitto_pub()
     if not password or not binary:
         print(payload)

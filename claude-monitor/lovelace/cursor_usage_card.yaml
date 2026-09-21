@@ -1,22 +1,18 @@
-# Cursor 使用量（直近24時間）。Spending 枠パーセントは取得不可。
+# Cursor 制限表示（Cursor Models / Other Models / Grok Bot）
 type: markdown
-title: Cursor 使用量
+title: Cursor 制限表示
 content: |
   {% set usage = state_attr('sensor.claude_jobs', 'usage') or {} %}
   {% set cursor = usage.cursor or {} %}
-  {% set sessions = cursor.sessions | default(0) %}
-  {% set input_tokens = cursor.input_tokens | default(0) %}
-  {% set output_tokens = cursor.output_tokens | default(0) %}
-  {% set cache_tokens = cursor.cache_tokens | default(0) %}
-  {% set last_used = cursor.last_used | default('-') %}
-  {% set models = cursor.models | default([]) %}
+  {% set limits = cursor.rate_limits or {} %}
+  {% set windows = limits.windows or [] %}
+  {% if windows | length == 0 %}
+  取得不可
+  {% else %}
 
-  | 項目 | 値 |
-  | --- | --- |
-  | セッション | {{ sessions }} |
-  | 入力トークン | {{ input_tokens }} |
-  | 出力トークン | {{ output_tokens }} |
-  | キャッシュ | {{ cache_tokens }} |
-  | 最終利用 | {{ last_used }} |
-  | モデル | {{ models | join(', ') if models else '-' }} |
-  | 制限表示 | 取得不可 |
+  | 枠 | 使用率 | バー | リセット |
+  | --- | --- | --- | --- |
+  {%- for row in windows %}
+  | {{ row.label }} | {{ row.percent_label or '-' }} | `{{ row.bar }}` | {{ row.reset or '-' }} |
+  {%- endfor %}
+  {% endif %}

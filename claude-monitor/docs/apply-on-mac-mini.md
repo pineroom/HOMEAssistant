@@ -14,4 +14,6 @@ PYTHONPATH=~/claude-monitor python3 ~/claude-monitor/aggregator/run_cursor_poll.
 
 Cloud 行のモデルは一覧 API に含まれない。ポールがエージェント詳細と最新 run を読んで補う。それでも無ければ `-`。
 
+制限表示（Cursor Models / Other Models / Grok Bot）は Cloud Agents の API キーでは取れない。Mac mini で Cursor.app にログインしたセッション（`state.vscdb`）を読む。HA には `lovelace/cursor_usage_card.yaml` を Markdown カードとして貼る。
+
 `run_cursor_poll: CURSOR_API_KEY is required` は、プロセスがキーを読めていない。overlay ディレクトリの `.env` ではなく live の `~/claude-monitor/.env` を使う。`launchctl load` が成功してもキーは入らない。

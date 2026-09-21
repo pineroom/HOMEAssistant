@@ -12,10 +12,11 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "hooks"))
 
+from aggregator.cursor_limits import fetch_cursor_limits
 from aggregator.cursor_poller import CursorAPIError, poll
 from aggregator.jobs_store import merge_poller_jobs, sanitize_jobs
 from lib.jobs import prune_jobs
-from mqtt_publish import cursor_api_key_diagnostics, load_env_files, publish_job
+from mqtt_publish import cursor_api_key_diagnostics, load_env_files, publish_job, publish_usage
 
 
 def load_state(path: Path) -> dict:
@@ -48,6 +49,8 @@ def main() -> int:
     include_usage = os.environ.get("CURSOR_INCLUDE_USAGE", "1") == "1"
     state = load_state(state_path)
     jobs = sanitize_jobs(state.get("jobs") or [])
+    exit_code = 0
+    result = None
     try:
         result = poll(include_usage=include_usage)
     except CursorAPIError as exc:
@@ -68,26 +71,40 @@ def main() -> int:
                 f" ~/claude-monitor/.env へ書いてください: pbpaste | {helper}",
                 file=sys.stderr,
             )
-        return 1
-    jobs = merge_poller_jobs(jobs, result["jobs"])
-    jobs = prune_jobs(jobs)
+        exit_code = 1
+    if result:
+        jobs = merge_poller_jobs(jobs, result["jobs"])
+        jobs = prune_jobs(jobs)
+        cursor_usage = dict(result["usage"] or {})
+        mqtt_jobs = result["jobs"]
+    else:
+        cursor_usage = dict((state.get("usage") or {}).get("cursor") or {})
+        mqtt_jobs = []
+    previous_limits = ((state.get("usage") or {}).get("cursor") or {}).get("rate_limits")
+    cursor_usage["rate_limits"] = fetch_cursor_limits(previous=previous_limits)
     usage = dict(state.get("usage") or {})
-    usage["cursor"] = result["usage"]
+    usage["cursor"] = cursor_usage
     state = {"jobs": jobs, "usage": usage}
     save_state(state_path, state)
-    mqtt_sent = publish_cursor_jobs(result["jobs"])
+    mqtt_sent = publish_cursor_jobs(mqtt_jobs)
+    try:
+        publish_usage({"cursor": cursor_usage})
+    except Exception as exc:  # noqa: BLE001
+        print(f"run_cursor_poll: usage mqtt failed: {exc}", file=sys.stderr)
     print(
         json.dumps(
             {
                 "job_count": len(jobs),
                 "cursor_jobs": sum(1 for job in jobs if job.get("tool") == "Cursor"),
-                "polled": len(result["jobs"]),
+                "polled": len(mqtt_jobs),
                 "mqtt_sent": mqtt_sent,
+                "limits": cursor_usage.get("rate_limits", {}).get("available"),
+                "limits_note": cursor_usage.get("rate_limits", {}).get("note") or "",
             },
             ensure_ascii=False,
         )
     )
-    return 0
+    return exit_code
 
 
 if __name__ == "__main__":

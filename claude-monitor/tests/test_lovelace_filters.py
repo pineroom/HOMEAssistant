@@ -23,9 +23,12 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertIn("model_disp", cursor)
         self.assertIn("4/4", cursor)
 
-    def test_usage_card_says_unavailable(self):
+    def test_usage_card_limit_windows(self):
         usage = (ROOT / "lovelace" / "cursor_usage_card.yaml").read_text()
         self.assertIn("制限表示", usage)
+        self.assertIn("Cursor Models", usage)
+        self.assertIn("Other Models", usage)
+        self.assertIn("Grok Bot", usage)
         self.assertIn("取得不可", usage)
         self.assertIn("usage.cursor", usage)
 
