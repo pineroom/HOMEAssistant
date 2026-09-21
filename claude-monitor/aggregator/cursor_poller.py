@@ -13,6 +13,7 @@ from lib.classification import infer_cursor_surface
 from lib.jobs import ADHOC_RETENTION, extract_model, normalize_job, parse_time, status_from_cloud_agent
 
 DEFAULT_API = "https://api.cursor.com/v1/agents"
+ENRICH_LIMIT = 20
 
 
 class CursorAPIError(RuntimeError):
@@ -51,6 +52,59 @@ def list_agents(api_key: str, base_url: str = DEFAULT_API, limit: int = 100) -> 
 
 def fetch_usage(api_key: str, agent_id: str, base_url: str = DEFAULT_API) -> dict[str, Any]:
     return _request(f"{base_url}/{agent_id}/usage", api_key)
+
+
+def fetch_agent(api_key: str, agent_id: str, base_url: str = DEFAULT_API) -> dict[str, Any]:
+    return _request(f"{base_url}/{agent_id}", api_key)
+
+
+def fetch_run(api_key: str, agent_id: str, run_id: str, base_url: str = DEFAULT_API) -> dict[str, Any]:
+    return _request(f"{base_url}/{agent_id}/runs/{run_id}", api_key)
+
+
+def _merge_agent_records(listed: dict[str, Any], *extras: dict[str, Any]) -> dict[str, Any]:
+    merged = dict(listed)
+    for extra in extras:
+        if not isinstance(extra, dict):
+            continue
+        for key, value in extra.items():
+            if value is None:
+                continue
+            if key in {"model", "model_id", "modelId"} or not merged.get(key):
+                merged[key] = value
+    return merged
+
+
+def enrich_agent(
+    api_key: str,
+    agent: dict[str, Any],
+    *,
+    agent_fetcher=None,
+    run_fetcher=None,
+) -> dict[str, Any]:
+    """一覧は durable フィールドだけなので、詳細と最新 run からモデルを補う。"""
+    if extract_model(agent):
+        return agent
+    agent_id = agent.get("id")
+    if not agent_id:
+        return agent
+    detail: dict[str, Any] = {}
+    try:
+        detail = agent_fetcher(api_key, agent_id) if agent_fetcher else fetch_agent(api_key, agent_id)
+    except CursorAPIError:
+        detail = {}
+    extras: list[dict[str, Any]] = [detail] if detail else []
+    if extract_model(_merge_agent_records(agent, *extras)):
+        return _merge_agent_records(agent, *extras)
+    run_id = agent.get("latestRunId") or (detail or {}).get("latestRunId")
+    if run_id:
+        try:
+            extras.append(
+                run_fetcher(api_key, agent_id, run_id) if run_fetcher else fetch_run(api_key, agent_id, run_id)
+            )
+        except CursorAPIError:
+            pass
+    return _merge_agent_records(agent, *extras)
 
 
 def agent_to_job(agent: dict[str, Any]) -> dict[str, Any]:
@@ -118,11 +172,9 @@ def summarize_usage(agents: list[dict[str, Any]], usage_by_id: dict[str, dict[st
         usage = usage_totals(usage_by_id.get(agent.get("id"), {}))
         for key in totals:
             totals[key] += usage[key]
-        model = agent.get("model")
-        if isinstance(model, dict):
-            model = model.get("id")
+        model = extract_model(agent)
         if model and model not in models:
-            models.append(str(model))
+            models.append(model)
     return {
         "sessions": sessions,
         "input_tokens": totals["input_tokens"],
@@ -144,11 +196,27 @@ def poll(
     include_usage: bool = False,
     fetcher=None,
     usage_fetcher=None,
+    agent_fetcher=None,
+    run_fetcher=None,
+    enrich: Optional[bool] = None,
 ) -> dict[str, Any]:
     api_key = api_key or os.environ.get("CURSOR_API_KEY")
     if not api_key:
         raise CursorAPIError("CURSOR_API_KEY is required")
     agents = fetcher(api_key) if fetcher else list_agents(api_key)
+    should_enrich = enrich if enrich is not None else fetcher is None
+    if should_enrich:
+        filled: list[dict[str, Any]] = []
+        for index, agent in enumerate(agents):
+            if index < ENRICH_LIMIT:
+                agent = enrich_agent(
+                    api_key,
+                    agent,
+                    agent_fetcher=agent_fetcher,
+                    run_fetcher=run_fetcher,
+                )
+            filled.append(agent)
+        agents = filled
     jobs = [agent_to_job(agent) for agent in agents if agent.get("id")]
     usage_by_id: dict[str, dict[str, Any]] = {}
     if include_usage:

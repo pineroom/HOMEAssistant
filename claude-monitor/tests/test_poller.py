@@ -49,6 +49,61 @@ class PollerTests(unittest.TestCase):
         self.assertEqual(len(result["jobs"]), 1)
         self.assertEqual(result["jobs"][0]["tool"], "Cursor")
 
+    def test_poll_enriches_model_from_latest_run(self):
+        listed = [
+            {
+                "id": "bc-1",
+                "name": "Aiエージェントシステム移植",
+                "status": "IDLE",
+                "env": {"type": "cloud"},
+                "latestRunId": "run-1",
+                "createdAt": "2026-09-21T00:00:00Z",
+            }
+        ]
+
+        def agent_fetcher(_key, _agent_id):
+            return dict(listed[0])
+
+        def run_fetcher(_key, _agent_id, _run_id):
+            return {"id": "run-1", "model": {"id": "composer-2.5"}}
+
+        result = poll(
+            api_key="dummy",
+            fetcher=lambda _key: listed,
+            agent_fetcher=agent_fetcher,
+            run_fetcher=run_fetcher,
+            enrich=True,
+        )
+        self.assertEqual(result["jobs"][0]["model"], "composer-2.5")
+        self.assertEqual(result["jobs"][0]["surface"], "cloud")
+
+    def test_merge_keeps_cloud_model_when_poll_omits_it(self):
+        existing = [
+            {
+                "job_id": "bc-1",
+                "tool": "Cursor",
+                "kind": "adhoc",
+                "name": "Aiエージェントシステム移植",
+                "status": "完了",
+                "stage": "4/4",
+                "surface": "cloud",
+                "model": "composer-2.5",
+            }
+        ]
+        incoming = [
+            {
+                "job_id": "bc-1",
+                "tool": "Cursor",
+                "kind": "adhoc",
+                "name": "Aiエージェントシステム移植",
+                "status": "完了",
+                "stage": "4/4",
+                "surface": "cloud",
+            }
+        ]
+        merged = merge_poller_jobs(existing, incoming)
+        self.assertEqual(merged[0]["model"], "composer-2.5")
+
     def test_merge_does_not_relabel_claude(self):
         existing = [
             {

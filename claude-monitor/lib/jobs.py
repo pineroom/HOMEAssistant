@@ -53,6 +53,8 @@ def is_generic_job_name(name: Any, job_id: Any = None) -> bool:
 
 
 PLACEHOLDER_MODELS = {"", "default", "auto", "inherit", "none", "null", "string", "-"}
+MODEL_KEYS = ("model", "model_id", "modelId", "chat_model", "llm", "selectedModel")
+NESTED_MODEL_CONTAINERS = ("latestRun", "latest_run", "run", "config", "settings")
 
 
 def normalize_model_label(raw: Any) -> Optional[str]:
@@ -66,13 +68,19 @@ def normalize_model_label(raw: Any) -> Optional[str]:
     return text[:80]
 
 
-def extract_model(payload: Optional[dict[str, Any]]) -> Optional[str]:
-    if not payload:
+def extract_model(payload: Optional[dict[str, Any]], *, _depth: int = 0) -> Optional[str]:
+    if not payload or not isinstance(payload, dict) or _depth > 3:
         return None
-    for key in ("model", "model_id", "modelId", "chat_model", "llm"):
+    for key in MODEL_KEYS:
         label = normalize_model_label(payload.get(key))
         if label:
             return label
+    for key in NESTED_MODEL_CONTAINERS:
+        nested = payload.get(key)
+        if isinstance(nested, dict):
+            label = extract_model(nested, _depth=_depth + 1)
+            if label:
+                return label
     return None
 
 

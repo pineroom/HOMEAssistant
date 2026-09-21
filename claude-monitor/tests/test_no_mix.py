@@ -102,6 +102,7 @@ class NoMixTests(unittest.TestCase):
         self.assertEqual(display_stage({"status": "待機中"}), "1/4")
         self.assertIsNone(extract_model({"model": "default"}))
         self.assertEqual(extract_model({"model_id": "claude-opus-4-7"}), "claude-opus-4-7")
+        self.assertEqual(extract_model({"latestRun": {"model": {"id": "composer-2.5"}}}), "composer-2.5")
         row = cursor_recent_rows(
             [
                 {

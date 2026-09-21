@@ -12,4 +12,6 @@ pbpaste | ~/claude-monitor/scripts/set_cursor_api_key.sh
 PYTHONPATH=~/claude-monitor python3 ~/claude-monitor/aggregator/run_cursor_poll.py
 ```
 
+Cloud 行のモデルは一覧 API に含まれない。ポールがエージェント詳細と最新 run を読んで補う。それでも無ければ `-`。
+
 `run_cursor_poll: CURSOR_API_KEY is required` は、プロセスがキーを読めていない。overlay ディレクトリの `.env` ではなく live の `~/claude-monitor/.env` を使う。`launchctl load` が成功してもキーは入らない。
