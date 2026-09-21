@@ -11,6 +11,11 @@
         "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
       }
     ],
+    "afterAgentResponse": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ],
     "postToolUse": [
       {
         "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"

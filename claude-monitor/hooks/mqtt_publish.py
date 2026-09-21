@@ -36,9 +36,29 @@ def load_env_files() -> None:
             os.environ.setdefault(key, value)
 
 
+def to_mqtt_payload(job: dict) -> dict:
+    """実機 aggregator が agent/type/progress を読む場合に備えて別名も付ける。"""
+    normalized = normalize_job(job)
+    out = dict(normalized)
+    out["agent"] = normalized["tool"]
+    out["type"] = normalized["kind"]
+    status = normalized.get("status") or ""
+    if status in {"完了", "エラー", "拒否"}:
+        out["progress"] = 100
+    else:
+        stage = str(normalized.get("stage") or "2/4")
+        try:
+            index = int(stage.split("/")[0])
+        except ValueError:
+            index = 2
+        out["progress"] = {1: 10, 2: 30, 3: 70, 4: 100}.get(index, 30)
+    return out
+
+
 def publish_job(job: dict) -> None:
     load_env_files()
-    payload = json.dumps(normalize_job(job), ensure_ascii=False)
+    payload_obj = to_mqtt_payload(job)
+    payload = json.dumps(payload_obj, ensure_ascii=False)
     host = os.environ.get("MQTT_HOST", "192.168.0.30")
     port = os.environ.get("MQTT_PORT", "1883")
     user = os.environ.get("MQTT_USER", "claude")

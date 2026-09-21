@@ -2,18 +2,16 @@
 
 既存の `~/claude-monitor` は GitHub リポジトリそのものではない。新規ファイルだけコピーする。
 
-## いま見えている症状
+## 1+1 が Claude Code 欄に出ない場合
 
-Cursor の処理が「Claude Code 実行中・最近の処理」に出る。Cursor カードはまだ HA に無い。
+ラップ後は **正常** です。Cursor の処理を Claude Code として送らなくなったため、既存の「Claude Code 実行中・最近の処理」には出ません。
 
-原因は次の2点。
+まだ足りないのは次の2点です。
 
-1. Cursor が `~/.claude/settings.json` の Claude Code Hook も実行する
-2. Lovelace の Claude カードがまだ Cursor を除外しておらず、Cursor 用カードも未追加
+1. Cursor 用カードが HA に無い
+2. Cursor 通知が MQTT まで届いているか未確認
 
-貼り付けた `settings.json` では、5本の Hook がすべて `--agent "Claude Code"` か `TOOL_LABEL='Claude Code'` になっている。JSON を手で直す必要はない。下の1本を実行する。
-
-## コピーと Claude Hook の包み込み
+## コピーと診断
 
 Mac mini の Terminal に、次をそのまま貼る。
 
@@ -22,33 +20,21 @@ cd ~/HOMEAssistant-cursor-overlay
 git pull
 chmod +x claude-monitor/scripts/apply_on_mac_mini.sh
 ./claude-monitor/scripts/apply_on_mac_mini.sh
+~/claude-monitor/scripts/diagnose_cursor_notify.sh
 ```
 
-このスクリプトがやること:
+`diagnose_cursor_notify.sh` はテストジョブ「Cursor 診断テスト」を1件送り、hook ログと MQTT の状態を出します。
 
-1. overlay の新規ファイルを `~/claude-monitor` へコピーする（既存の `job_notify.sh` と `ha_agent_hook.py` は上書きしない）
-2. `~/.claude/settings.json` を `.bak-日時` に退避する
-3. `hooks` 配下の command 5本の先頭に `wrap_claude_hook.sh` を付ける
-4. `statusLine` は触らない
-
-包んだあとの command は次の形になる。
-
-```text
-/Users/matsufusa/claude-monitor/hooks/wrap_claude_hook.sh /Users/matsufusa/claude-monitor/hooks/ha_agent_hook.py notify --agent "Claude Code" ...
-/Users/matsufusa/claude-monitor/hooks/wrap_claude_hook.sh TOOL_LABEL='Claude Code' JOB_ID=claude-code-current /Users/matsufusa/claude-monitor/hooks/await_approval.sh
-```
-
-Cursor 由来なら Cursor 通知へ回し、本物の Claude Code セッションだけ元コマンドを実行する。
-
-確認:
-
-```bash
-python3 -c 'import json,pathlib; d=json.loads(pathlib.Path.home().joinpath(".claude/settings.json").read_text());
-[print(h["command"]) for ev in d["hooks"].values() for g in ev for h in g.get("hooks",[])]'
-```
-
-Cursor を完全終了して再起動し、ローカルエージェントで短い依頼を1件出す。
+Cursor を完全終了（`Cmd + Q`）して再起動してから、もう一度短い依頼を出してください。
 
 ## Lovelace
 
-`lovelace/cursor_usage_card.yaml` と `lovelace/cursor_jobs_card.yaml` を `claude-monitor-live` の Claude カードの近くに追加する。既存の Claude カードの抽出は `tool == 'Claude Code'` に差し替える。`tool != Codex` は使わない。
+`claude-monitor-live` を編集し、Claude カードの近くに Markdown カードを2枚足す。
+
+1枚目のタイトル: `Cursor 使用量`  
+本文は `lovelace/cursor_usage_card.yaml` の `content:` 以下。
+
+2枚目のタイトル: `Cursor 実行中・最近の処理`  
+本文は `lovelace/cursor_jobs_card.yaml` の `content:` 以下。
+
+既存の Claude カードが `Codex` 以外を全部拾っているなら、抽出を `tool == 'Claude Code'`（または `agent == 'Claude Code'`）に差し替える。

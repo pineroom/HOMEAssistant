@@ -3,10 +3,14 @@ type: markdown
 title: Cursor 実行中・最近の処理
 content: |
   {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
-  {% set rows = jobs
-    | selectattr('kind', 'equalto', 'adhoc')
-    | selectattr('tool', 'equalto', 'Cursor')
-    | list %}
+  {% set ns = namespace(rows=[]) %}
+  {% for job in jobs %}
+    {% set tool = job.tool | default(job.agent) %}
+    {% if (job.kind | default(job.type) | default('adhoc')) == 'adhoc' and tool == 'Cursor' %}
+      {% set ns.rows = ns.rows + [job] %}
+    {% endif %}
+  {% endfor %}
+  {% set rows = ns.rows %}
   {% if rows | length == 0 %}
   処理なし
   {% else %}

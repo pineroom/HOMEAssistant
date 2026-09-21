@@ -3,11 +3,17 @@
 set -euo pipefail
 
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT="$(cd "$HOOK_DIR/.." && pwd)"
+LOG="$ROOT/state/cursor_hook.log"
+mkdir -p "$ROOT/state"
+
 INPUT="$(cat)"
 if printf '%s' "$INPUT" | python3 "$HOOK_DIR/claude_hook_guard.py" >/dev/null; then
+  echo "wrap: route=cursor $(date '+%Y-%m-%dT%H:%M:%S')" >> "$LOG" || true
   printf '%s' "$INPUT" | "$HOOK_DIR/cursor_notify.sh"
   exit 0
 fi
+echo "wrap: route=claude $(date '+%Y-%m-%dT%H:%M:%S')" >> "$LOG" || true
 if [[ "$#" -eq 0 ]]; then
   exit 0
 fi

@@ -16,8 +16,16 @@ cp "$SRC"/hooks/cursor_notify.sh "$DST"/hooks/
 cp "$SRC"/hooks/ha_agent_hook.py "$DST"/hooks/ha_agent_hook_cursor.py
 cp "$SRC"/scripts/inspect_jobs.py "$DST"/scripts/
 cp "$SRC"/scripts/wrap_claude_settings.py "$DST"/scripts/
+cp "$SRC"/scripts/diagnose_cursor_notify.sh "$DST"/scripts/
 cp "$SRC"/lovelace/*.yaml "$DST"/lovelace/
 chmod +x "$DST"/hooks/*.sh "$DST"/hooks/*.py "$DST"/scripts/*.py "$DST"/scripts/*.sh 2>/dev/null || true
+
+mkdir -p "$HOME/.cursor"
+if [[ -f "$HOME/.cursor/hooks.json" ]]; then
+  cp "$HOME/.cursor/hooks.json" "$HOME/.cursor/hooks.json.bak-$(date +%Y%m%d-%H%M%S)"
+fi
+sed "s|\${CLAUDE_MONITOR_HOME}|${DST}|g" "$SRC/hooks/cursor.hooks.json" > "$HOME/.cursor/hooks.json"
+echo "wrote $HOME/.cursor/hooks.json"
 
 echo "copied overlay files into $DST"
 echo "left existing job_notify.sh / ha_agent_hook.py untouched"
@@ -32,4 +40,4 @@ if [[ ! -f "$DST/hooks/mqtt.env" && ! -f "$DST/state/mqtt.env" && ! -f "$DST/.en
 fi
 
 echo
-echo "次: Cursor を完全終了して再起動してください。settings.json は手で編集しなくて大丈夫です。"
+echo "次: Cursor を完全終了して再起動し、~/claude-monitor/scripts/diagnose_cursor_notify.sh を実行してください。"

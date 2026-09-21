@@ -11,11 +11,12 @@ class LovelaceFilterTests(unittest.TestCase):
         claude = (ROOT / "lovelace" / "claude_jobs_card.yaml").read_text()
         cursor = (ROOT / "lovelace" / "cursor_jobs_card.yaml").read_text()
         content = claude.split("content:", 1)[-1]
-        self.assertIn("selectattr('tool', 'equalto', 'Claude Code')", claude)
+        self.assertIn("tool == 'Claude Code'", claude)
         self.assertNotIn("!=", content)
         self.assertNotIn("not equalto", content)
         self.assertNotIn("Codex", content)
-        self.assertIn("selectattr('tool', 'equalto', 'Cursor')", cursor)
+        self.assertIn("tool == 'Cursor'", cursor)
+        self.assertIn("job.agent", cursor)
 
     def test_usage_card_says_unavailable(self):
         usage = (ROOT / "lovelace" / "cursor_usage_card.yaml").read_text()
