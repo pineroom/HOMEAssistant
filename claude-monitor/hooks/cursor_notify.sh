@@ -4,6 +4,7 @@ set -euo pipefail
 
 export TOOL=Cursor
 export KIND="${KIND:-adhoc}"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HOOK_DIR/.." && pwd)"
 LOG="$ROOT/state/cursor_hook.log"
@@ -12,6 +13,7 @@ mkdir -p "$ROOT/state"
 INPUT="$(cat)"
 {
   echo "----- $(date '+%Y-%m-%dT%H:%M:%S') pid=$$ -----"
+  echo "python=$(command -v python3 || true) mosq=$(command -v mosquitto_pub || true)"
   echo "$INPUT"
 } >> "$LOG" || true
 

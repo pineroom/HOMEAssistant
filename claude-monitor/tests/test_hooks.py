@@ -72,7 +72,15 @@ class HookTests(unittest.TestCase):
         self.assertEqual(job["name"], "1+1 を計算して")
         self.assertEqual(job["status"], "実行中")
 
-    def test_progress_for_completed(self):
+    def test_empty_payload_still_gets_cursor_job_id(self):
+        with mock.patch.dict(os.environ, {"TOOL": "Cursor"}):
+            job = hook.build_job({})
+        self.assertEqual(job["tool"], "Cursor")
+        self.assertTrue(job["job_id"].startswith("cursor-"))
+
+    def test_cursor_notify_exports_homebrew_path(self):
+        text = (ROOT / "hooks" / "cursor_notify.sh").read_text()
+        self.assertIn("/opt/homebrew/bin", text)
         self.assertEqual(hook.progress_for_job({"status": "完了", "stage": "4/4"}), 100)
         self.assertEqual(hook.progress_for_job({"status": "実行中", "stage": "2/4"}), 30)
 

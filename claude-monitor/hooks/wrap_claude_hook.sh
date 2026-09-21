@@ -6,6 +6,7 @@ HOOK_DIR="$(cd "$(dirname "$0")" && pwd)"
 ROOT="$(cd "$HOOK_DIR/.." && pwd)"
 LOG="$ROOT/state/cursor_hook.log"
 mkdir -p "$ROOT/state"
+export PATH="/opt/homebrew/bin:/usr/local/bin:${PATH:-/usr/bin:/bin}"
 
 INPUT="$(cat)"
 if printf '%s' "$INPUT" | python3 "$HOOK_DIR/claude_hook_guard.py" >/dev/null; then

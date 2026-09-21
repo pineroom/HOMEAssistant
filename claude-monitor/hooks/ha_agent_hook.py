@@ -3,8 +3,10 @@
 
 from __future__ import annotations
 
+import hashlib
 import json
 import os
+import shutil
 import subprocess
 import sys
 from datetime import datetime
@@ -44,10 +46,18 @@ def log_line(message: str) -> None:
 
 
 def read_payload() -> dict:
-    raw = sys.stdin.read().strip().lstrip("\ufeff")
+    raw = sys.stdin.read().lstrip("\ufeff").strip()
+    log_line(f"stdin_len={len(raw)} head={raw[:240]!r}")
     if not raw:
         return {}
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        start = raw.find("{")
+        end = raw.rfind("}")
+        if start >= 0 and end > start:
+            return json.loads(raw[start : end + 1])
+        raise
 
 
 def detect_tool(payload: dict) -> str:
@@ -64,7 +74,8 @@ def job_id_from_payload(payload: dict) -> str:
         value = payload.get(key)
         if value:
             return str(value)
-    raise ClassificationError("empty job id")
+    raw = json.dumps(payload, sort_keys=True, default=str)
+    return "cursor-" + hashlib.sha1(raw.encode("utf-8")).hexdigest()[:12]
 
 
 def job_name(payload: dict, job_id: str) -> str:
@@ -128,8 +139,10 @@ def publish_via_live_notify(job: dict) -> None:
         return
     env = os.environ.copy()
     env["JOB_ID"] = job["job_id"]
+    env["PATH"] = "/opt/homebrew/bin:/usr/local/bin:" + env.get("PATH", "")
+    python3 = shutil.which("python3", path=env["PATH"]) or "/usr/bin/python3"
     cmd = [
-        sys.executable,
+        python3,
         str(live),
         "notify",
         "--agent",

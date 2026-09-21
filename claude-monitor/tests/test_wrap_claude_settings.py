@@ -114,6 +114,7 @@ class WrapScriptTests(unittest.TestCase):
     def test_wrap_shell_uses_env(self):
         text = (ROOT / "hooks" / "wrap_claude_hook.sh").read_text()
         self.assertIn('env "$@"', text)
+        self.assertIn("/opt/homebrew/bin", text)
 
     def test_apply_script_exists(self):
         path = ROOT / "scripts" / "apply_on_mac_mini.sh"

@@ -55,6 +55,18 @@ def to_mqtt_payload(job: dict) -> dict:
     return out
 
 
+def find_mosquitto_pub():
+    candidates = [
+        shutil.which("mosquitto_pub"),
+        "/opt/homebrew/bin/mosquitto_pub",
+        "/usr/local/bin/mosquitto_pub",
+    ]
+    for path in candidates:
+        if path and os.path.isfile(path) and os.access(path, os.X_OK):
+            return path
+    return None
+
+
 def publish_job(job: dict) -> None:
     load_env_files()
     payload_obj = to_mqtt_payload(job)
@@ -64,7 +76,7 @@ def publish_job(job: dict) -> None:
     user = os.environ.get("MQTT_USER", "claude")
     password = os.environ.get("MQTT_PASS") or os.environ.get("MQTT_PASSWORD")
     topic = os.environ.get("MQTT_TOPIC", "claude/job_update")
-    binary = shutil.which("mosquitto_pub")
+    binary = find_mosquitto_pub()
     if not password or not binary:
         print(payload)
         if not password:
