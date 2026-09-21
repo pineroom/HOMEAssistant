@@ -4,6 +4,7 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
 from typing import Any, Iterable, Optional
+import re
 
 from .classification import (
     ClassificationError,
@@ -35,6 +36,20 @@ CLOUD_AGENT_ERROR = {"ERROR"}
 CLOUD_RUN_ACTIVE = {"CREATING", "RUNNING"}
 CLOUD_RUN_ERROR = {"ERROR", "EXPIRED"}
 CLOUD_RUN_CANCELLED = {"CANCELLED"}
+
+UUID_NAME_RE = re.compile(
+    r"^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$"
+)
+
+
+def is_generic_job_name(name: Any, job_id: Any = None) -> bool:
+    """UUID や job_id そのものは表示名として使わない。"""
+    text = str(name or "").strip()
+    if not text:
+        return True
+    if job_id is not None and text == str(job_id).strip():
+        return True
+    return bool(UUID_NAME_RE.match(text))
 
 
 def _now() -> datetime:
@@ -164,7 +179,12 @@ def merge_job(jobs: Iterable[dict[str, Any]], incoming: dict[str, Any]) -> list[
     for job in jobs:
         if job.get("job_id") == normalized["job_id"]:
             updated = dict(job)
-            updated.update({k: v for k, v in normalized.items() if v is not None})
+            incoming_fields = {k: v for k, v in normalized.items() if v is not None}
+            if is_generic_job_name(incoming_fields.get("name"), normalized["job_id"]) and not is_generic_job_name(
+                job.get("name"), job.get("job_id")
+            ):
+                incoming_fields.pop("name", None)
+            updated.update(incoming_fields)
             if not updated.get("started"):
                 updated["started"] = job.get("started")
             merged.append(normalize_job(updated))

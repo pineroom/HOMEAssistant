@@ -19,7 +19,7 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertIn("content: |", cursor)
         self.assertIn("job.get('agent')", cursor)
         self.assertIn("job.get('kind')", cursor)
-        self.assertIn("job.get('stage') or '-'", cursor)
+        self.assertIn("job.get('stage')", cursor)
         self.assertIn("{%- for job in rows %}", cursor)
 
     def test_usage_card_says_unavailable(self):

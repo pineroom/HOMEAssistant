@@ -21,7 +21,7 @@ from lib.classification import (
     is_cursor_payload,
     normalize_tool,
 )
-from lib.jobs import normalize_job, stage_from_cursor_event
+from lib.jobs import is_generic_job_name, normalize_job, stage_from_cursor_event
 
 JOB_ID_KEYS = (
     "conversation_id",
@@ -35,6 +35,9 @@ JOB_ID_KEYS = (
 )
 
 
+NAMES_PATH = ROOT / "state" / "cursor_job_names.json"
+
+
 def log_line(message: str) -> None:
     path = ROOT / "state" / "cursor_hook.log"
     try:
@@ -43,6 +46,49 @@ def log_line(message: str) -> None:
         path.open("a", encoding="utf-8").write(f"ha_agent_hook: {stamp} {message}\n")
     except OSError:
         pass
+
+
+def load_job_names() -> dict:
+    if not NAMES_PATH.is_file():
+        return {}
+    try:
+        data = json.loads(NAMES_PATH.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def remember_job_name(job_id: str, name: str) -> None:
+    if is_generic_job_name(name, job_id):
+        return
+    names = load_job_names()
+    names[job_id] = name
+    try:
+        NAMES_PATH.parent.mkdir(parents=True, exist_ok=True)
+        NAMES_PATH.write_text(json.dumps(names, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    except OSError:
+        pass
+
+
+def job_name_from_payload(payload: dict) -> str | None:
+    for key in ("prompt", "user_message", "title", "name"):
+        value = payload.get(key)
+        if isinstance(value, str) and value.strip():
+            return value.strip()[:80]
+        if isinstance(value, dict) and value.get("text"):
+            return str(value["text"]).strip()[:80]
+    return None
+
+
+def resolve_job_name(payload: dict, job_id: str) -> str:
+    incoming = job_name_from_payload(payload)
+    if incoming and not is_generic_job_name(incoming, job_id):
+        remember_job_name(job_id, incoming)
+        return incoming
+    saved = load_job_names().get(job_id)
+    if saved:
+        return str(saved)
+    return incoming or job_id
 
 
 def read_payload() -> dict:
@@ -79,13 +125,7 @@ def job_id_from_payload(payload: dict) -> str:
 
 
 def job_name(payload: dict, job_id: str) -> str:
-    for key in ("prompt", "user_message", "title", "name"):
-        value = payload.get(key)
-        if isinstance(value, str) and value.strip():
-            return value.strip()[:80]
-        if isinstance(value, dict) and value.get("text"):
-            return str(value["text"]).strip()[:80]
-    return job_id
+    return resolve_job_name(payload, job_id)
 
 
 def progress_for_job(job: dict) -> int:

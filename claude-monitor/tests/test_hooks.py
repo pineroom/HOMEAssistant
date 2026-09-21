@@ -72,6 +72,31 @@ class HookTests(unittest.TestCase):
         self.assertEqual(job["name"], "1+1 を計算して")
         self.assertEqual(job["status"], "実行中")
 
+    def test_stop_keeps_prompt_name(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as tmp:
+            names_path = Path(tmp) / "cursor_job_names.json"
+            with mock.patch.object(hook, "NAMES_PATH", names_path):
+                with mock.patch.dict(os.environ, {"TOOL": "Cursor"}):
+                    start = hook.build_job(
+                        {
+                            "conversation_id": "ec4aa7f3-e37b-4a2a-8ec4-180508535f5a",
+                            "hook_event_name": "beforeSubmitPrompt",
+                            "prompt": "1＋1を実行して",
+                        }
+                    )
+                    stop = hook.build_job(
+                        {
+                            "conversation_id": "ec4aa7f3-e37b-4a2a-8ec4-180508535f5a",
+                            "hook_event_name": "stop",
+                            "reason": "completed",
+                        }
+                    )
+        self.assertEqual(start["name"], "1＋1を実行して")
+        self.assertEqual(stop["name"], "1＋1を実行して")
+        self.assertEqual(stop["status"], "完了")
+
     def test_empty_payload_still_gets_cursor_job_id(self):
         with mock.patch.dict(os.environ, {"TOOL": "Cursor"}):
             job = hook.build_job({})
@@ -81,6 +106,8 @@ class HookTests(unittest.TestCase):
     def test_cursor_notify_exports_homebrew_path(self):
         text = (ROOT / "hooks" / "cursor_notify.sh").read_text()
         self.assertIn("/opt/homebrew/bin", text)
+
+    def test_progress_for_completed(self):
         self.assertEqual(hook.progress_for_job({"status": "完了", "stage": "4/4"}), 100)
         self.assertEqual(hook.progress_for_job({"status": "実行中", "stage": "2/4"}), 30)
 

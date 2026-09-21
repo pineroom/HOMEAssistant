@@ -9,7 +9,7 @@ from pathlib import Path
 
 from aggregator.jobs_store import apply_updates, sanitize_jobs
 from lib.classification import ClassificationError
-from lib.jobs import merge_job, normalize_job
+from lib.jobs import is_generic_job_name, merge_job, normalize_job
 from lib.lovelace_filters import claude_recent_rows, cursor_recent_rows, tools_in_rows
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -68,6 +68,33 @@ class NoMixTests(unittest.TestCase):
         self.assertEqual(tools_in_rows(claude_rows), {"Claude Code"})
         self.assertEqual(tools_in_rows(cursor_rows), {"Cursor"})
         self.assertEqual(cursor_rows[0]["model"], "claude-4-sonnet-thinking")
+
+    def test_merge_does_not_replace_prompt_with_uuid(self):
+        job_id = "ec4aa7f3-e37b-4a2a-8ec4-180508535f5a"
+        first = normalize_job(
+            {
+                "job_id": job_id,
+                "tool": "Cursor",
+                "kind": "adhoc",
+                "name": "1＋1を実行して",
+                "status": "実行中",
+                "stage": "2/4",
+            }
+        )
+        jobs = merge_job(
+            [first],
+            {
+                "job_id": job_id,
+                "tool": "Cursor",
+                "kind": "adhoc",
+                "name": job_id,
+                "status": "完了",
+                "stage": "4/4",
+            },
+        )
+        self.assertEqual(jobs[0]["name"], "1＋1を実行して")
+        self.assertEqual(jobs[0]["status"], "完了")
+        self.assertTrue(is_generic_job_name(job_id, job_id))
 
     def test_unknown_update_is_dropped(self):
         jobs = apply_updates([self.claude], [{"job_id": "mystery", "tool": "", "name": "???"}])
