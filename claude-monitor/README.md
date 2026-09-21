@@ -27,9 +27,8 @@ from aggregator.cursor_poller import poll
 Cloud Agent 用:
 
 ```bash
-export CURSOR_API_KEY=...   # launchd の環境変数のみ。Git に置かない
-export CURSOR_INCLUDE_USAGE=1
-python3 aggregator/run_cursor_poll.py
+pbpaste | ./scripts/set_cursor_api_key.sh   # ~/claude-monitor/.env へ書く。Git に置かない
+PYTHONPATH=~/claude-monitor python3 ~/claude-monitor/aggregator/run_cursor_poll.py
 ```
 
 HA の `claude-monitor-live` に `lovelace/*.yaml` を追加する。

@@ -19,6 +19,7 @@ cp "$SRC"/scripts/inspect_jobs.py "$DST"/scripts/
 cp "$SRC"/scripts/wrap_claude_settings.py "$DST"/scripts/
 cp "$SRC"/scripts/diagnose_cursor_notify.sh "$DST"/scripts/
 cp "$SRC"/scripts/install_cursor_poller.sh "$DST"/scripts/
+cp "$SRC"/scripts/set_cursor_api_key.sh "$DST"/scripts/
 cp "$SRC"/lovelace/*.yaml "$DST"/lovelace/
 chmod +x "$DST"/hooks/*.sh "$DST"/hooks/*.py "$DST"/scripts/*.py "$DST"/scripts/*.sh "$DST"/aggregator/*.py 2>/dev/null || true
 

@@ -15,7 +15,7 @@ sys.path.insert(0, str(ROOT / "hooks"))
 from aggregator.cursor_poller import CursorAPIError, poll
 from aggregator.jobs_store import merge_poller_jobs, sanitize_jobs
 from lib.jobs import prune_jobs
-from mqtt_publish import load_env_files, publish_job
+from mqtt_publish import cursor_api_key_diagnostics, load_env_files, publish_job
 
 
 def load_state(path: Path) -> dict:
@@ -52,6 +52,22 @@ def main() -> int:
         result = poll(include_usage=include_usage)
     except CursorAPIError as exc:
         print(f"run_cursor_poll: {exc}", file=sys.stderr)
+        if "CURSOR_API_KEY" in str(exc):
+            diag = cursor_api_key_diagnostics()
+            for row in diag["files"]:
+                if not row["exists"]:
+                    note = "file missing"
+                elif row["has_key"]:
+                    note = "CURSOR_API_KEY present"
+                else:
+                    note = "no CURSOR_API_KEY line"
+                print(f"  {row['path']}: {note}", file=sys.stderr)
+            helper = ROOT / "scripts" / "set_cursor_api_key.sh"
+            print(
+                "キーは Dashboard で作っただけでは入りません。"
+                f" ~/claude-monitor/.env へ書いてください: pbpaste | {helper}",
+                file=sys.stderr,
+            )
         return 1
     jobs = merge_poller_jobs(jobs, result["jobs"])
     jobs = prune_jobs(jobs)

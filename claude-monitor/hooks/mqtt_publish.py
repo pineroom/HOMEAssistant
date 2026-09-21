@@ -15,25 +15,70 @@ sys.path.insert(0, str(ROOT))
 
 from lib.jobs import normalize_job
 
-ENV_FILES = (
-    ROOT / "hooks" / "mqtt.env",
-    ROOT / "state" / "mqtt.env",
-    ROOT / ".env",
-)
+ENV_RELATIVE = (".env", "hooks/mqtt.env", "state/mqtt.env")
 
 
-def load_env_files() -> None:
-    for path in ENV_FILES:
+def parse_env_line(line: str):
+    line = line.strip().lstrip("\ufeff")
+    if not line or line.startswith("#") or "=" not in line:
+        return None
+    if line.startswith("export "):
+        line = line[len("export ") :].strip()
+    key, value = line.split("=", 1)
+    key = key.strip()
+    value = value.strip().strip("'").strip('"')
+    if not key:
+        return None
+    return key, value
+
+
+def env_file_candidates(extra_roots=None, include_defaults=True):
+    roots = []
+    if include_defaults:
+        roots.append(ROOT)
+        roots.append(Path(os.environ.get("CLAUDE_MONITOR_HOME", Path.home() / "claude-monitor")))
+    for extra in extra_roots or ():
+        roots.append(Path(extra))
+    seen = set()
+    paths = []
+    for root in roots:
+        for relative in ENV_RELATIVE:
+            path = (root / relative).resolve()
+            if path in seen:
+                continue
+            seen.add(path)
+            paths.append(path)
+    return paths
+
+
+def load_env_files(extra_roots=None, include_defaults=True) -> None:
+    for path in env_file_candidates(extra_roots, include_defaults=include_defaults):
         if not path.is_file():
             continue
         for line in path.read_text().splitlines():
-            line = line.strip()
-            if not line or line.startswith("#") or "=" not in line:
+            parsed = parse_env_line(line)
+            if not parsed:
                 continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip("'").strip('"')
-            os.environ.setdefault(key, value)
+            key, value = parsed
+            existing = os.environ.get(key)
+            if existing is None or not str(existing).strip():
+                os.environ[key] = value
+
+
+def cursor_api_key_diagnostics(extra_roots=None, include_defaults=True) -> dict:
+    files = []
+    for path in env_file_candidates(extra_roots, include_defaults=include_defaults):
+        has_key = False
+        exists = path.is_file()
+        if exists:
+            for line in path.read_text().splitlines():
+                parsed = parse_env_line(line)
+                if parsed and parsed[0] == "CURSOR_API_KEY" and parsed[1]:
+                    has_key = True
+                    break
+        files.append({"path": str(path), "exists": exists, "has_key": has_key})
+    key = (os.environ.get("CURSOR_API_KEY") or "").strip()
+    return {"set": bool(key), "files": files}
 
 
 def to_mqtt_payload(job: dict) -> dict:
