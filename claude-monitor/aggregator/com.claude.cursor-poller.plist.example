@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+  <key>Label</key>
+  <string>com.claude.cursor-poller</string>
+  <key>ProgramArguments</key>
+  <array>
+    <string>/usr/bin/python3</string>
+    <string>/Users/REPLACE/claude-monitor/aggregator/run_cursor_poll.py</string>
+  </array>
+  <key>WorkingDirectory</key>
+  <string>/Users/REPLACE/claude-monitor</string>
+  <key>EnvironmentVariables</key>
+  <dict>
+    <key>PYTHONPATH</key>
+    <string>/Users/REPLACE/claude-monitor</string>
+    <key>CURSOR_API_KEY</key>
+    <string>REPLACE_WITH_CURSOR_API_KEY</string>
+    <key>CURSOR_INCLUDE_USAGE</key>
+    <string>1</string>
+    <key>CLAUDE_MONITOR_STATE</key>
+    <string>/Users/REPLACE/claude-monitor/aggregator/jobs_state.json</string>
+  </dict>
+  <key>StartInterval</key>
+  <integer>30</integer>
+  <key>RunAtLoad</key>
+  <true/>
+</dict>
+</plist>

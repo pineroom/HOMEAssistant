@@ -1,0 +1,22 @@
+# Cursor 使用量（直近24時間）。Spending 枠パーセントは取得不可。
+type: markdown
+title: Cursor 使用量
+content: |
+  {% set usage = state_attr('sensor.claude_jobs', 'usage') or {} %}
+  {% set cursor = usage.cursor or {} %}
+  {% set sessions = cursor.sessions | default(0) %}
+  {% set input_tokens = cursor.input_tokens | default(0) %}
+  {% set output_tokens = cursor.output_tokens | default(0) %}
+  {% set cache_tokens = cursor.cache_tokens | default(0) %}
+  {% set last_used = cursor.last_used | default('-') %}
+  {% set models = cursor.models | default([]) %}
+
+  | 項目 | 値 |
+  | --- | --- |
+  | セッション | {{ sessions }} |
+  | 入力トークン | {{ input_tokens }} |
+  | 出力トークン | {{ output_tokens }} |
+  | キャッシュ | {{ cache_tokens }} |
+  | 最終利用 | {{ last_used }} |
+  | モデル | {{ models | join(', ') if models else '-' }} |
+  | 制限表示 | 取得不可 |

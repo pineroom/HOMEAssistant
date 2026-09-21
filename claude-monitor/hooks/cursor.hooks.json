@@ -1,0 +1,30 @@
+{
+  "version": 1,
+  "hooks": {
+    "sessionStart": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ],
+    "beforeSubmitPrompt": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ],
+    "postToolUse": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ],
+    "stop": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ],
+    "sessionEnd": [
+      {
+        "command": "${CLAUDE_MONITOR_HOME}/hooks/cursor_notify.sh"
+      }
+    ]
+  }
+}

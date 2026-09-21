@@ -1,0 +1,4 @@
+aggregator/jobs_state.json
+__pycache__/
+*.pyc
+.hooks.json.bak*
