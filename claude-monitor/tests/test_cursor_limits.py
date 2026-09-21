@@ -11,8 +11,10 @@ from aggregator.cursor_limits import (
     decode_vscdb_value,
     fetch_cursor_limits,
     limits_from_payloads,
+    limits_to_jobs,
     normalize_percent,
     usage_bar,
+    windows_from_jobs,
 )
 
 
@@ -54,6 +56,28 @@ class CursorLimitsTests(unittest.TestCase):
         self.assertEqual(by_id["other-models"]["percent_label"], "74.0%")
         self.assertEqual(by_id["grok-bot"]["percent_label"], "40.0%")
         self.assertRegex(by_id["other-models"]["reset"], r"09/26 \d{2}:\d{2}")
+
+    def test_limits_to_jobs_roundtrip(self):
+        summary = {
+            "billingCycleEnd": "2026-09-26T14:02:00.000Z",
+            "individualUsage": {"plan": {"autoPercentUsed": 0.0, "apiPercentUsed": 74.0}},
+        }
+        sand = {
+            "hasNonZeroIncludedLimit": True,
+            "usagePercent": 40,
+            "nextResetTimestampUtc": "2026-09-28T07:57:50.647Z",
+        }
+        limits = limits_from_payloads(summary, sand)
+        jobs = limits_to_jobs(limits)
+        self.assertEqual([job["job_id"] for job in jobs], [
+            "cursor-limit-1-cursor-models",
+            "cursor-limit-2-other-models",
+            "cursor-limit-3-grok-bot",
+        ])
+        self.assertTrue(all(job["kind"] == "adhoc" for job in jobs))
+        rows = windows_from_jobs(jobs)
+        self.assertEqual([row["label"] for row in rows], ["Cursor Models", "Other Models", "Grok Bot"])
+        self.assertEqual(rows[1]["percent_label"], "74.0%")
 
     def test_cookie_encodes_user_and_token(self):
         payload = base64_json({"sub": "user_abc"})

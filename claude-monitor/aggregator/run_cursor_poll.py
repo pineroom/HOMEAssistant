@@ -12,7 +12,7 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / "hooks"))
 
-from aggregator.cursor_limits import fetch_cursor_limits
+from aggregator.cursor_limits import fetch_cursor_limits, limits_to_jobs, upsert_limit_jobs
 from aggregator.cursor_poller import CursorAPIError, poll
 from aggregator.jobs_store import merge_poller_jobs, sanitize_jobs
 from lib.jobs import prune_jobs
@@ -82,14 +82,19 @@ def main() -> int:
         mqtt_jobs = []
     previous_limits = ((state.get("usage") or {}).get("cursor") or {}).get("rate_limits")
     cursor_usage["rate_limits"] = fetch_cursor_limits(previous=previous_limits)
+    jobs = upsert_limit_jobs(jobs, cursor_usage.get("rate_limits"))
     usage = dict(state.get("usage") or {})
     usage["cursor"] = cursor_usage
     state = {"jobs": jobs, "usage": usage}
     save_state(state_path, state)
     mqtt_sent = publish_cursor_jobs(mqtt_jobs)
+    limits_mqtt = 0
     try:
         publish_usage({"cursor": cursor_usage})
         publish_cursor_limits(cursor_usage.get("rate_limits") or {})
+        for job in limits_to_jobs(cursor_usage.get("rate_limits")):
+            publish_job(job)
+            limits_mqtt += 1
     except Exception as exc:  # noqa: BLE001
         print(f"run_cursor_poll: usage mqtt failed: {exc}", file=sys.stderr)
     print(
@@ -101,6 +106,7 @@ def main() -> int:
                 "mqtt_sent": mqtt_sent,
                 "limits": cursor_usage.get("rate_limits", {}).get("available"),
                 "limits_note": cursor_usage.get("rate_limits", {}).get("note") or "",
+                "limits_mqtt": limits_mqtt,
             },
             ensure_ascii=False,
         )

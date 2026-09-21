@@ -1,11 +1,20 @@
 type: markdown
 title: Cursor 制限表示
 content: |
+  {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
   {% set usage = state_attr('sensor.claude_jobs', 'usage') or {} %}
   {% set cursor = usage.get('cursor') or {} %}
   {% set limits = cursor.get('rate_limits') or {} %}
-  {% set from_mqtt = state_attr('sensor.claude_cursor_limits', 'windows') %}
-  {% set windows = from_mqtt or limits.get('windows') or [] %}
+  {% set ns = namespace(windows=state_attr('sensor.claude_cursor_limits', 'windows') or limits.get('windows') or []) %}
+  {% if ns.windows | length == 0 %}
+    {% for job in jobs %}
+      {% set jid = job.get('job_id') or job.get('id') or '' %}
+      {% if jid[:13] == 'cursor-limit-' %}
+        {% set ns.windows = ns.windows + [{'label': job.get('name'), 'percent_label': job.get('stage') or '-', 'bar': job.get('model') or job.get('model_id') or '-', 'reset': job.get('status') or '-'}] %}
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+  {% set windows = ns.windows %}
   {% if windows | length == 0 %}
   取得不可
   {% else %}

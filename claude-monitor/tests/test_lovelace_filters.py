@@ -21,7 +21,7 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertIn("job.get('kind')", cursor)
         self.assertIn("stage_disp", cursor)
         self.assertIn("model_disp", cursor)
-        self.assertIn("4/4", cursor)
+        self.assertIn("jid[:13] != 'cursor-limit-'", cursor)
 
     def test_usage_card_limit_windows(self):
         usage = (ROOT / "lovelace" / "cursor_usage_card.yaml").read_text()
@@ -29,6 +29,7 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertIn("usage.get('cursor')", usage)
         self.assertIn("row.get('label')", usage)
         self.assertIn("sensor.claude_cursor_limits", usage)
+        self.assertIn("jid[:13] == 'cursor-limit-'", usage)
         self.assertIn("取得不可", usage)
         self.assertNotIn("usage.cursor ", usage)
 

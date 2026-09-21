@@ -7,7 +7,8 @@ content: |
   {% for job in jobs %}
     {% set tool = job.get('tool') or job.get('agent') %}
     {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
-    {% if kind == 'adhoc' and tool == 'Cursor' %}
+    {% set jid = job.get('job_id') or job.get('id') or '' %}
+    {% if kind == 'adhoc' and tool == 'Cursor' and jid[:13] != 'cursor-limit-' %}
       {% set st = job.get('stage') %}
       {% set p = job.get('progress') | default(0) | int %}
       {% set status = job.get('status') or '' %}

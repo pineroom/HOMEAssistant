@@ -23,6 +23,7 @@ WINDOW_SPECS = (
     {"id": "other-models", "label": "Other Models"},
     {"id": "grok-bot", "label": "Grok Bot"},
 )
+LIMIT_JOB_PREFIX = "cursor-limit-"
 
 
 def empty_window(spec: dict[str, str], note: str = "取得不可") -> dict[str, Any]:
@@ -342,3 +343,48 @@ def fetch_cursor_limits(
     result = limits_from_payloads(summary, sand, now=now, auth_source=auth_source)
     result["fetched_at"] = now.isoformat()
     return result
+
+
+def is_limit_job(job: dict[str, Any]) -> bool:
+    job_id = str(job.get("job_id") or job.get("id") or "")
+    return job_id.startswith(LIMIT_JOB_PREFIX)
+
+
+def limits_to_jobs(limits: Optional[dict[str, Any]]) -> list[dict[str, Any]]:
+    """HA の jobs 配列に載せる。name/stage/model/status だけ使う（aggregator が既知フィールドしか残さないため）。"""
+    by_id = {row.get("id"): row for row in (limits or {}).get("windows") or []}
+    jobs = []
+    for index, spec in enumerate(WINDOW_SPECS, 1):
+        row = by_id.get(spec["id"]) or empty_window(spec)
+        jobs.append(
+            {
+                "job_id": f"{LIMIT_JOB_PREFIX}{index}-{spec['id']}",
+                "tool": "Cursor",
+                "kind": "adhoc",
+                "name": spec["label"],
+                "status": row.get("reset") or "-",
+                "stage": row.get("percent_label") or "-",
+                "model": row.get("bar") or "-" * BAR_WIDTH,
+                "surface": "local",
+            }
+        )
+    return jobs
+
+
+def upsert_limit_jobs(jobs: list[dict[str, Any]], limits: Optional[dict[str, Any]]) -> list[dict[str, Any]]:
+    kept = [job for job in jobs if not is_limit_job(job)]
+    return kept + limits_to_jobs(limits)
+
+
+def windows_from_jobs(jobs: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    rows = [job for job in jobs if is_limit_job(job)]
+    rows.sort(key=lambda job: str(job.get("job_id") or ""))
+    return [
+        {
+            "label": job.get("name"),
+            "percent_label": job.get("stage") or "-",
+            "bar": job.get("model") or "-" * BAR_WIDTH,
+            "reset": job.get("status") or "-",
+        }
+        for job in rows
+    ]
