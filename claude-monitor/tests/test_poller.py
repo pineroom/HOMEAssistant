@@ -13,6 +13,7 @@ class PollerTests(unittest.TestCase):
                 "name": "Investigate monitor",
                 "status": "ACTIVE",
                 "env": {"type": "cloud"},
+                "model": {"id": "composer-2.5"},
                 "createdAt": "2026-09-21T00:00:00Z",
                 "updatedAt": "2026-09-21T00:10:00Z",
             }
@@ -30,6 +31,7 @@ class PollerTests(unittest.TestCase):
         self.assertEqual(cloud["tool"], "Cursor")
         self.assertEqual(cloud["surface"], "cloud")
         self.assertEqual(cloud["status"], "実行中")
+        self.assertEqual(cloud.get("model"), "composer-2.5")
         self.assertEqual(worker["surface"], "grok-bot")
         self.assertEqual(worker["status"], "完了")
 

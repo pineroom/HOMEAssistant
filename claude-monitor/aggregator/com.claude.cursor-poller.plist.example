@@ -15,15 +15,15 @@
   <dict>
     <key>PYTHONPATH</key>
     <string>/Users/REPLACE/claude-monitor</string>
-    <key>CURSOR_API_KEY</key>
-    <string>REPLACE_WITH_CURSOR_API_KEY</string>
+    <key>PATH</key>
+    <string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin</string>
     <key>CURSOR_INCLUDE_USAGE</key>
     <string>1</string>
     <key>CLAUDE_MONITOR_STATE</key>
     <string>/Users/REPLACE/claude-monitor/aggregator/jobs_state.json</string>
   </dict>
   <key>StartInterval</key>
-  <integer>30</integer>
+  <integer>60</integer>
   <key>RunAtLoad</key>
   <true/>
 </dict>

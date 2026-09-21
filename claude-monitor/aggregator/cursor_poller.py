@@ -10,7 +10,7 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Optional
 
 from lib.classification import infer_cursor_surface
-from lib.jobs import ADHOC_RETENTION, normalize_job, parse_time, status_from_cloud_agent
+from lib.jobs import ADHOC_RETENTION, extract_model, normalize_job, parse_time, status_from_cloud_agent
 
 DEFAULT_API = "https://api.cursor.com/v1/agents"
 
@@ -58,9 +58,13 @@ def agent_to_job(agent: dict[str, Any]) -> dict[str, Any]:
     env_type = env.get("type") if isinstance(env, dict) else None
     surface = infer_cursor_surface(
         env_type=env_type,
+        is_background_agent=agent.get("is_background_agent"),
         name=agent.get("name"),
+        source=agent.get("source") or agent.get("origin"),
     )
-    stage, status = status_from_cloud_agent(agent.get("status"), agent.get("run_status"))
+    if surface == "local" and (env_type in {"cloud", "background"} or agent.get("target") == "cloud"):
+        surface = "cloud"
+    stage, status = status_from_cloud_agent(agent.get("status"), agent.get("run_status") or agent.get("runStatus"))
     job = {
         "job_id": agent.get("id"),
         "tool": "Cursor",
@@ -69,6 +73,7 @@ def agent_to_job(agent: dict[str, Any]) -> dict[str, Any]:
         "status": status,
         "stage": stage,
         "surface": surface,
+        "model": extract_model(agent),
         "started": agent.get("createdAt"),
         "url": agent.get("url"),
     }

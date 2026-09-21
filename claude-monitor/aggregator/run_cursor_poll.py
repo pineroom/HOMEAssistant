@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cloud Agents をポールして jobs_state に合流する。launchd / aggregator から呼ぶ。"""
+"""Cloud Agents をポールして jobs_state に合流し、MQTT でも HA へ送る。"""
 
 from __future__ import annotations
 
@@ -10,10 +10,12 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
+sys.path.insert(0, str(ROOT / "hooks"))
 
-from aggregator.cursor_poller import poll
+from aggregator.cursor_poller import CursorAPIError, poll
 from aggregator.jobs_store import merge_poller_jobs, sanitize_jobs
 from lib.jobs import prune_jobs
+from mqtt_publish import load_env_files, publish_job
 
 
 def load_state(path: Path) -> dict:
@@ -27,19 +29,48 @@ def save_state(path: Path, state: dict) -> None:
     path.write_text(json.dumps(state, ensure_ascii=False, indent=2) + "\n")
 
 
+def publish_cursor_jobs(jobs: list) -> int:
+    sent = 0
+    for job in jobs:
+        if job.get("tool") != "Cursor":
+            continue
+        try:
+            publish_job(job)
+            sent += 1
+        except Exception as exc:  # noqa: BLE001
+            print(f"run_cursor_poll: mqtt failed {job.get('job_id')}: {exc}", file=sys.stderr)
+    return sent
+
+
 def main() -> int:
+    load_env_files()
     state_path = Path(os.environ.get("CLAUDE_MONITOR_STATE", ROOT / "aggregator" / "jobs_state.json"))
     include_usage = os.environ.get("CURSOR_INCLUDE_USAGE", "1") == "1"
     state = load_state(state_path)
     jobs = sanitize_jobs(state.get("jobs") or [])
-    result = poll(include_usage=include_usage)
+    try:
+        result = poll(include_usage=include_usage)
+    except CursorAPIError as exc:
+        print(f"run_cursor_poll: {exc}", file=sys.stderr)
+        return 1
     jobs = merge_poller_jobs(jobs, result["jobs"])
     jobs = prune_jobs(jobs)
     usage = dict(state.get("usage") or {})
     usage["cursor"] = result["usage"]
     state = {"jobs": jobs, "usage": usage}
     save_state(state_path, state)
-    print(json.dumps({"job_count": len(jobs), "cursor_jobs": sum(1 for job in jobs if job.get("tool") == "Cursor")}, ensure_ascii=False))
+    mqtt_sent = publish_cursor_jobs(result["jobs"])
+    print(
+        json.dumps(
+            {
+                "job_count": len(jobs),
+                "cursor_jobs": sum(1 for job in jobs if job.get("tool") == "Cursor"),
+                "polled": len(result["jobs"]),
+                "mqtt_sent": mqtt_sent,
+            },
+            ensure_ascii=False,
+        )
+    )
     return 0
 
 

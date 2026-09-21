@@ -121,7 +121,7 @@ class WrapScriptTests(unittest.TestCase):
         self.assertTrue(path.is_file())
         text = path.read_text()
         self.assertIn("wrap_claude_settings.py", text)
-        self.assertIn("ha_agent_hook_cursor.py", text)
+        self.assertIn("install_cursor_poller.sh", text)
         self.assertNotIn("cp \"$SRC\"/hooks/job_notify.sh", text)
         self.assertNotIn("cp \"$SRC\"/hooks/ha_agent_hook.py \"$DST\"/hooks/ha_agent_hook.py", text)
 
