@@ -4,13 +4,8 @@
 
 ## Lovelace カードの貼り方
 
-Jinja 本文だけを「セクションを編集」に貼ると YAML エラーになる。
-`{% set jobs ... %}` はセクション定義ではなく、**Markdown カード**の `content` に入れる。
-
-1. 「セクションを編集」は × で閉じる
-2. Claude Code カードがあるセクションで **カードを追加**
-3. **Markdown** を選ぶ
-4. 右下の **コードエディタを表示** を開き、次を **先頭から全部** 貼る
+「セクションを編集」ではなく **Markdown カード**のコードエディタに、次を先頭から全部貼る。
+実機ジョブに `kind` が無いため、`job.kind` は使わず `job.get('kind')` にする。
 
 ```yaml
 type: markdown
@@ -19,8 +14,8 @@ content: |
   {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
   {% set ns = namespace(rows=[]) %}
   {% for job in jobs %}
-    {% set tool = job.tool | default(job.agent) %}
-    {% set kind = job.kind or job.type or 'adhoc' %}
+    {% set tool = job.get('tool') or job.get('agent') %}
+    {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
     {% if kind == 'adhoc' and tool == 'Cursor' %}
       {% set ns.rows = ns.rows + [job] %}
     {% endif %}
@@ -31,14 +26,10 @@ content: |
   {% else %}
   | ジョブ | 経路 | 状態 | 段階 | モデル |
   | --- | --- | --- | --- | --- |
-  {% for job in rows | sort(attribute='started', reverse=true) %}
-  {% set surface = job.surface | default('local') %}
-  {% set surface_label = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'}[surface] | default(surface) %}
-  | {{ job.name }} | {{ surface_label }} | {{ job.status }} | {{ job.stage }} | {{ job.model or '-' }} |
+  {% for job in rows %}
+  {% set surface = job.get('surface') or 'local' %}
+  {% set surface_label = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'}.get(surface, surface) %}
+  | {{ job.get('name') }} | {{ surface_label }} | {{ job.get('status') }} | {{ job.get('stage') }} | {{ job.get('model') or '-' }} |
   {% endfor %}
   {% endif %}
 ```
-
-5. 保存する
-
-既存の Claude Code カードを複製し、`tool == 'Cursor'` に変える方法でもよい。

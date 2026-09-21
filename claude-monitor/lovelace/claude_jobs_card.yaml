@@ -6,8 +6,8 @@ content: |
   {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
   {% set ns = namespace(rows=[]) %}
   {% for job in jobs %}
-    {% set tool = job.tool | default(job.agent) %}
-    {% set kind = job.kind or job.type or 'adhoc' %}
+    {% set tool = job.get('tool') or job.get('agent') %}
+    {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
     {% if kind == 'adhoc' and tool == 'Claude Code' %}
       {% set ns.rows = ns.rows + [job] %}
     {% endif %}

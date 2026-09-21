@@ -4,8 +4,8 @@ content: |
   {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
   {% set ns = namespace(rows=[]) %}
   {% for job in jobs %}
-    {% set tool = job.tool | default(job.agent) %}
-    {% set kind = job.kind or job.type or 'adhoc' %}
+    {% set tool = job.get('tool') or job.get('agent') %}
+    {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
     {% if kind == 'adhoc' and tool == 'Cursor' %}
       {% set ns.rows = ns.rows + [job] %}
     {% endif %}
@@ -16,9 +16,9 @@ content: |
   {% else %}
   | ジョブ | 経路 | 状態 | 段階 | モデル |
   | --- | --- | --- | --- | --- |
-  {% for job in rows | sort(attribute='started', reverse=true) %}
-  {% set surface = job.surface | default('local') %}
-  {% set surface_label = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'}[surface] | default(surface) %}
-  | {{ job.name }} | {{ surface_label }} | {{ job.status }} | {{ job.stage }} | {{ job.model or '-' }} |
+  {% for job in rows %}
+  {% set surface = job.get('surface') or 'local' %}
+  {% set surface_label = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'}.get(surface, surface) %}
+  | {{ job.get('name') }} | {{ surface_label }} | {{ job.get('status') }} | {{ job.get('stage') }} | {{ job.get('model') or '-' }} |
   {% endfor %}
   {% endif %}
