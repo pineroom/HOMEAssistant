@@ -11,4 +11,5 @@ fi
 if [[ "$#" -eq 0 ]]; then
   exit 0
 fi
-printf '%s' "$INPUT" | "$@"
+# PreToolUse の `TOOL_LABEL=... JOB_ID=... cmd` も env 経由でそのまま実行する。
+printf '%s' "$INPUT" | env "$@"
