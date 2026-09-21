@@ -134,6 +134,8 @@ def publish_via_live_notify(job: dict) -> None:
         "notify",
         "--agent",
         job["tool"],
+        "--id",
+        job["job_id"],
         "--type",
         job.get("kind") or "adhoc",
         "--name",

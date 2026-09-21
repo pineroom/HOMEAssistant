@@ -40,23 +40,23 @@ echo "== live notify --help =="
 python3 "$DST/hooks/ha_agent_hook.py" notify --help 2>&1 | head -n 50 || true
 
 echo
-echo "== hook log (last 80 lines) =="
-if [[ -f "$DST/state/cursor_hook.log" ]]; then
-  tail -n 80 "$DST/state/cursor_hook.log"
-else
-  echo "(no log yet — 1+1 のとき Hook が走っていない可能性が高い)"
-fi
-
-echo
 echo "== test publish: Cursor 診断テスト =="
 JOB_ID="cursor-diag-$(date +%H%M%S)"
 printf '%s\n' "{\"conversation_id\":\"$JOB_ID\",\"generation_id\":\"gen-$JOB_ID\",\"hook_event_name\":\"beforeSubmitPrompt\",\"prompt\":\"Cursor 診断テスト\",\"composer_mode\":\"agent\"}" | "$DST/hooks/cursor_notify.sh"
 echo "published job_id=$JOB_ID"
 
 echo
+echo "== hook log (last 80 lines) =="
+if [[ -f "$DST/state/cursor_hook.log" ]]; then
+  tail -n 80 "$DST/state/cursor_hook.log"
+else
+  echo "(no log yet — Hook が一度も走っていない)"
+fi
+
+echo
 echo "== inspect jobs =="
 python3 "$DST/scripts/inspect_jobs.py" || true
 
 echo
-echo "HA の claude-monitor-live を再読み込みし、Cursor カードか jobs に『Cursor 診断テスト』が出るか見てください。"
-echo "出ない場合はこのコマンドの出力全体を貼ってください。"
+echo "HA の claude-monitor-live に Cursor カードを足し、再読み込みしてください。"
+echo "『Cursor 診断テスト』は Claude Code 欄ではなく Cursor 欄に出ます。"

@@ -43,6 +43,22 @@ class NoMixTests(unittest.TestCase):
             }
         )
 
+    def test_null_kind_counts_as_adhoc(self):
+        rows = cursor_recent_rows(
+            [
+                {
+                    "job_id": "cursor-live-1",
+                    "tool": "Cursor",
+                    "kind": None,
+                    "name": "Cursor 診断テスト",
+                    "status": "実行中",
+                    "stage": "2/4",
+                    "started": "2026-09-21T03:00:00+00:00",
+                }
+            ]
+        )
+        self.assertEqual([row["name"] for row in rows], ["Cursor 診断テスト"])
+
     def test_mixed_store_splits_cleanly(self):
         jobs = apply_updates([], [self.claude, self.cursor_local])
         claude_rows = claude_recent_rows(jobs)

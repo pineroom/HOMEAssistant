@@ -204,7 +204,7 @@ def select_jobs(
     return [
         job
         for job in jobs
-        if job.get("tool") == wanted and job.get("kind") == kind
+        if job.get("tool") == wanted and (job.get("kind") or "adhoc") == kind
     ]
 
 

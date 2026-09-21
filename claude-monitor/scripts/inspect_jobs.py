@@ -15,7 +15,7 @@ CANDIDATES = [
 ]
 
 
-def load() -> dict:
+def load():
     if len(sys.argv) > 1:
         path = Path(sys.argv[1])
         return json.loads(path.read_text()), path
@@ -28,37 +28,57 @@ def load() -> dict:
 def jobs_from(state):
     if isinstance(state, list):
         return state
+    if not isinstance(state, dict):
+        return []
     for key in ("jobs", "items", "value"):
-        value = state.get(key) if isinstance(state, dict) else None
+        value = state.get(key)
         if isinstance(value, list):
             return value
-    if isinstance(state, dict):
-        attrs = state.get("attributes") or {}
-        if isinstance(attrs.get("jobs"), list):
-            return attrs["jobs"]
-    return []
+    attrs = state.get("attributes") or {}
+    if isinstance(attrs.get("jobs"), list):
+        return attrs["jobs"]
+    mapped = [
+        value
+        for value in state.values()
+        if isinstance(value, dict) and (value.get("tool") or value.get("agent") or value.get("job_id"))
+    ]
+    return mapped
+
+
+def tool_of(job: dict) -> str:
+    return str(job.get("tool") or job.get("agent") or "<empty>")
+
+
+def brief(job: dict) -> dict:
+    return {
+        "job_id": job.get("job_id") or job.get("id"),
+        "tool": tool_of(job),
+        "name": job.get("name"),
+        "status": job.get("status"),
+        "kind": job.get("kind") or job.get("type"),
+        "started": job.get("started"),
+    }
 
 
 def main() -> int:
     state, path = load()
     jobs = jobs_from(state)
-    counts = Counter(str(job.get("tool") or "<empty>") for job in jobs)
+    counts = Counter(tool_of(job) for job in jobs)
     print(f"file: {path}")
     print(f"jobs: {len(jobs)}")
     print("tools:")
     for tool, count in counts.most_common():
         print(f"  {tool}: {count}")
-    print("latest 8:")
-    for job in jobs[-8:]:
-        print(
-            {
-                "job_id": job.get("job_id") or job.get("id"),
-                "tool": job.get("tool"),
-                "name": job.get("name"),
-                "status": job.get("status"),
-                "kind": job.get("kind"),
-            }
-        )
+    print("cursor jobs:")
+    cursor = [job for job in jobs if tool_of(job) == "Cursor"]
+    if not cursor:
+        print("  (none)")
+    for job in cursor:
+        print(brief(job))
+    print("latest 8 by started:")
+    ordered = sorted(jobs, key=lambda job: job.get("started") or job.get("updated") or "", reverse=True)
+    for job in ordered[:8]:
+        print(brief(job))
     return 0
 
 

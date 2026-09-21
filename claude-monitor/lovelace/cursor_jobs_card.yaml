@@ -6,7 +6,8 @@ content: |
   {% set ns = namespace(rows=[]) %}
   {% for job in jobs %}
     {% set tool = job.tool | default(job.agent) %}
-    {% if (job.kind | default(job.type) | default('adhoc')) == 'adhoc' and tool == 'Cursor' %}
+    {% set kind = job.kind or job.type or 'adhoc' %}
+    {% if kind == 'adhoc' and tool == 'Cursor' %}
       {% set ns.rows = ns.rows + [job] %}
     {% endif %}
   {% endfor %}

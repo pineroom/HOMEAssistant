@@ -17,6 +17,7 @@ class LovelaceFilterTests(unittest.TestCase):
         self.assertNotIn("Codex", content)
         self.assertIn("tool == 'Cursor'", cursor)
         self.assertIn("job.agent", cursor)
+        self.assertIn("job.kind or job.type or 'adhoc'", cursor)
 
     def test_usage_card_says_unavailable(self):
         usage = (ROOT / "lovelace" / "cursor_usage_card.yaml").read_text()
