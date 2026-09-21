@@ -126,7 +126,22 @@ def publish_usage(usage: dict) -> None:
     _publish(os.environ.get("MQTT_USAGE_TOPIC", "claude/usage_update"), {"tool": "Cursor", "usage": usage})
 
 
-def _publish(topic: str, payload_obj: dict) -> None:
+def publish_cursor_limits(limits: dict) -> None:
+    """HA が usage.cursor を持たなくても制限表を出せるよう、MQTT discovery でセンサを作る。"""
+    discovery = {
+        "name": "Cursor 制限",
+        "object_id": "claude_cursor_limits",
+        "unique_id": "claude_cursor_limits",
+        "state_topic": "claude/cursor_limits",
+        "json_attributes_topic": "claude/cursor_limits",
+        "value_template": "{{ value_json.available }}",
+        "icon": "mdi:chart-bar",
+    }
+    _publish("homeassistant/sensor/claude_cursor_limits/config", discovery, retain=True)
+    _publish("claude/cursor_limits", limits, retain=True)
+
+
+def _publish(topic: str, payload_obj: dict, retain: bool = False) -> None:
     load_env_files()
     payload = json.dumps(payload_obj, ensure_ascii=False)
     host = os.environ.get("MQTT_HOST", "192.168.0.30")
@@ -141,24 +156,24 @@ def _publish(topic: str, payload_obj: dict) -> None:
         if not binary:
             print("mqtt_publish: mosquitto_pub not found", file=sys.stderr)
         return
-    subprocess.run(
-        [
-            binary,
-            "-h",
-            host,
-            "-p",
-            str(port),
-            "-u",
-            user,
-            "-P",
-            password,
-            "-t",
-            topic,
-            "-m",
-            payload,
-        ],
-        check=True,
-    )
+    cmd = [
+        binary,
+        "-h",
+        host,
+        "-p",
+        str(port),
+        "-u",
+        user,
+        "-P",
+        password,
+        "-t",
+        topic,
+        "-m",
+        payload,
+    ]
+    if retain:
+        cmd.append("-r")
+    subprocess.run(cmd, check=True)
 
 
 if __name__ == "__main__":

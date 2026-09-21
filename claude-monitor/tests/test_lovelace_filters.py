@@ -26,11 +26,11 @@ class LovelaceFilterTests(unittest.TestCase):
     def test_usage_card_limit_windows(self):
         usage = (ROOT / "lovelace" / "cursor_usage_card.yaml").read_text()
         self.assertIn("制限表示", usage)
-        self.assertIn("Cursor Models", usage)
-        self.assertIn("Other Models", usage)
-        self.assertIn("Grok Bot", usage)
+        self.assertIn("usage.get('cursor')", usage)
+        self.assertIn("row.get('label')", usage)
+        self.assertIn("sensor.claude_cursor_limits", usage)
         self.assertIn("取得不可", usage)
-        self.assertIn("usage.cursor", usage)
+        self.assertNotIn("usage.cursor ", usage)
 
     def test_python_filters_match_cards(self):
         jobs = [

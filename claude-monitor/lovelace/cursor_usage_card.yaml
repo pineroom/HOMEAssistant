@@ -1,11 +1,11 @@
-# Cursor 制限表示（Cursor Models / Other Models / Grok Bot）
 type: markdown
 title: Cursor 制限表示
 content: |
   {% set usage = state_attr('sensor.claude_jobs', 'usage') or {} %}
-  {% set cursor = usage.cursor or {} %}
-  {% set limits = cursor.rate_limits or {} %}
-  {% set windows = limits.windows or [] %}
+  {% set cursor = usage.get('cursor') or {} %}
+  {% set limits = cursor.get('rate_limits') or {} %}
+  {% set from_mqtt = state_attr('sensor.claude_cursor_limits', 'windows') %}
+  {% set windows = from_mqtt or limits.get('windows') or [] %}
   {% if windows | length == 0 %}
   取得不可
   {% else %}
@@ -13,6 +13,6 @@ content: |
   | 枠 | 使用率 | バー | リセット |
   | --- | --- | --- | --- |
   {%- for row in windows %}
-  | {{ row.label }} | {{ row.percent_label or '-' }} | `{{ row.bar }}` | {{ row.reset or '-' }} |
+  | {{ row.get('label') }} | {{ row.get('percent_label') or '-' }} | `{{ row.get('bar') }}` | {{ row.get('reset') or '-' }} |
   {%- endfor %}
   {% endif %}

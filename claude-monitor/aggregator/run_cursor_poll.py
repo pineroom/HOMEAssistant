@@ -16,7 +16,7 @@ from aggregator.cursor_limits import fetch_cursor_limits
 from aggregator.cursor_poller import CursorAPIError, poll
 from aggregator.jobs_store import merge_poller_jobs, sanitize_jobs
 from lib.jobs import prune_jobs
-from mqtt_publish import cursor_api_key_diagnostics, load_env_files, publish_job, publish_usage
+from mqtt_publish import cursor_api_key_diagnostics, load_env_files, publish_cursor_limits, publish_job, publish_usage
 
 
 def load_state(path: Path) -> dict:
@@ -89,6 +89,7 @@ def main() -> int:
     mqtt_sent = publish_cursor_jobs(mqtt_jobs)
     try:
         publish_usage({"cursor": cursor_usage})
+        publish_cursor_limits(cursor_usage.get("rate_limits") or {})
     except Exception as exc:  # noqa: BLE001
         print(f"run_cursor_poll: usage mqtt failed: {exc}", file=sys.stderr)
     print(
