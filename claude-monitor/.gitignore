@@ -1,0 +1,6 @@
+aggregator/jobs_state.json
+state/cursor_job_names.json
+state/cursor_hook.log
+__pycache__/
+*.pyc
+.hooks.json.bak*

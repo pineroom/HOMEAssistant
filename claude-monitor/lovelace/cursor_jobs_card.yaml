@@ -1,0 +1,45 @@
+type: markdown
+title: Cursor 実行中・最近の処理
+content: |
+  {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
+  {% set ns = namespace(rows=[]) %}
+  {% set labels = {'local': 'ローカル', 'cloud': 'Cloud', 'worker': 'Worker', 'grok-bot': 'Grok Bot'} %}
+  {% for job in jobs %}
+    {% set tool = job.get('tool') or job.get('agent') %}
+    {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
+    {% set jid = job.get('job_id') or job.get('id') or '' %}
+    {% if kind == 'adhoc' and tool == 'Cursor' and jid[:13] != 'cursor-limit-' %}
+      {% set st = job.get('stage') %}
+      {% set p = job.get('progress') | default(0) | int %}
+      {% set status = job.get('status') or '' %}
+      {% if st and st != 'None' %}
+        {% set stage_disp = st %}
+      {% elif status in ['完了', 'エラー', '拒否'] or p == 100 %}
+        {% set stage_disp = '4/4' %}
+      {% elif status == '権限承認待ち' or p >= 70 %}
+        {% set stage_disp = '3/4' %}
+      {% elif status == '待機中' or p == 10 %}
+        {% set stage_disp = '1/4' %}
+      {% elif status == '実行中' or p >= 30 %}
+        {% set stage_disp = '2/4' %}
+      {% else %}
+        {% set stage_disp = '-' %}
+      {% endif %}
+      {% set model_disp = job.get('model') or job.get('model_id') or job.get('llm') or '-' %}
+      {% if model_disp in ['None', 'default', 'auto', ''] %}
+        {% set model_disp = '-' %}
+      {% endif %}
+      {% set ns.rows = ns.rows + [{'name': job.get('name'), 'surface': job.get('surface') or 'local', 'status': status or '-', 'stage': stage_disp, 'model': model_disp}] %}
+    {% endif %}
+  {% endfor %}
+  {% set rows = ns.rows %}
+  {% if rows | length == 0 %}
+  処理なし
+  {% else %}
+
+  | ジョブ | 経路 | 状態 | 段階 | モデル |
+  | --- | --- | --- | --- | --- |
+  {%- for job in rows %}
+  | {{ job.name }} | {{ labels.get(job.surface, 'ローカル') }} | {{ job.status }} | {{ job.stage }} | {{ job.model }} |
+  {%- endfor %}
+  {% endif %}

@@ -1,0 +1,6 @@
+# claude-monitor-live の /claude に追加・置換するカード一式。
+# Claude カードを既存の「Codex 以外」抽出から差し替えること。
+cards:
+  - !include cursor_usage_card.yaml
+  - !include cursor_jobs_card.yaml
+  - !include claude_jobs_card.yaml

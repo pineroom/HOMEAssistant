@@ -1,0 +1,24 @@
+# Claude Code 実行中・最近の処理
+# tool は Claude Code のみ。Codex 以外を全部拾うと Cursor が混ざる。
+type: markdown
+title: Claude Code 実行中・最近の処理
+content: |
+  {% set jobs = state_attr('sensor.claude_jobs', 'jobs') or [] %}
+  {% set ns = namespace(rows=[]) %}
+  {% for job in jobs %}
+    {% set tool = job.get('tool') or job.get('agent') %}
+    {% set kind = job.get('kind') or job.get('type') or 'adhoc' %}
+    {% if kind == 'adhoc' and tool == 'Claude Code' %}
+      {% set ns.rows = ns.rows + [job] %}
+    {% endif %}
+  {% endfor %}
+  {% set rows = ns.rows %}
+  {% if rows | length == 0 %}
+  処理なし
+  {% else %}
+  | ジョブ | 状態 | 段階 | モデル |
+  | --- | --- | --- | --- |
+  {% for job in rows | sort(attribute='started', reverse=true) %}
+  | {{ job.name }} | {{ job.status }} | {{ job.stage }} | {{ job.model or '-' }} |
+  {% endfor %}
+  {% endif %}
